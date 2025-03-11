@@ -13,9 +13,9 @@ class LoggedUserHrs:
         self.report = report
         self.date = datetime.now().strftime("%m-%d-%Y")
 
-    def getHrs(self):
+    def __getHrs(self):
         '''
-            Returns the Hours that were clocked in.
+            Returns the Hours that were clocked in by date.
         '''
         hours = list()
         for i in range(len(self.report)):
@@ -23,7 +23,7 @@ class LoggedUserHrs:
                 hours.append(self.report[i][1])
         return hours
 
-    def getDates(self):
+    def __getDates(self):
         '''
             Returns the Dates where hours were clocked in.
         '''
@@ -33,36 +33,21 @@ class LoggedUserHrs:
                 dates.append(self.report[i][0])
         return dates
 
-    def getOT(self):
+    def getHrsWrked(self):
         '''
-            Returns OT(Over Time) hours that were clocked in.
+            Returns a Dictionary with the date hours were
+            logged as the Key and the hours as the Value.
 
-            TODO:
-                getOT() needs to account for the days they are earned for this
-                to work properly
+            Example:
+                {'Thu 1/30' : 8}
         '''
+        weekHrs = dict()
+        dates = self.__getDates()
+        hrs = self.__getHrs()
+        for i in range(len(dates)):
+            weekHrs.update({dates[i]: hrs[i]})
 
-        totalHrs = self.getHrs()
-        otHrs = list()
-        for i in range(len(totalHrs)):
-            otHrs.append(totalHrs[i]-8)
-        return otHrs
-
-    def getRT(self):
-        '''
-            Returns RT(Regular Time) hours that were clocked in.
-
-            WARNING:
-                Need getOT() to work poperly
-        '''
-
-        totalHrs = self.getHrs()
-        otHrs = self.getOT()
-        rtHrs = list()
-        for i in range(len(self.report)):
-            if re.search("[0-9]", self.report[i][0]) is not None:
-                rtHrs.append(self.report[i][1]-otHrs[i])
-        return rtHrs
+        return weekHrs
 
 
 def dailyHrs(sheet, control):
@@ -81,16 +66,16 @@ def hrsFormatter(arr):
 
     else:
         arr = arr.split(":")
-        heap = [float(i) for i in arr]
+        stack = [float(i) for i in arr]
 
-        if heap[1] == 15:
-            heap[1] = .25
-        elif heap[1] == 30:
-            heap[1] = .50
-        elif heap[1] == 45:
-            heap[1] = .75
+        if stack[1] == 15:
+            stack[1] = .25
+        elif stack[1] == 30:
+            stack[1] = .50
+        elif stack[1] == 45:
+            stack[1] = .75
 
-        return heap[0] + heap[1]
+        return stack[0] + stack[1]
 
 
 def func(sheet):
@@ -124,11 +109,11 @@ for i in range(0, workbook.nsheets):
         users.append(LoggedUserHrs(currUser[0], currUser[1:]))
 
 
-print("\"{0}\", \"{1}\", {2}".format(
-    users[2].date, users[2].name, users[2].getDates()
+print("{0}".format(
+    users[2].getHrsWrked()
 ))
 
 for i in range(len(users)):
-    print("{0}".format(
-        users[i].getRT()
+    print("{0},".format(
+        users[i].getHrsWrked()
     ))
