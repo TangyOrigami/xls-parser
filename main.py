@@ -4,15 +4,19 @@ from datetime import datetime
 
 workbook = xlrd.open_workbook('MAIN OFFICE DETAIL PAYROLL REPORT.xls')
 
-weekdays = "[Thu|Fri|Mon|Tue|Wed]"
-weekends = "[Sat|Sun]"
 
+class User:
+    '''
+        User object that creates an interface
+        of the users' logged hours.
+    '''
 
-class LoggedUserHrs:
     def __init__(self, name, report):
+        '''
+            User Interface
+        '''
         self.name = str(name)
         self.report = report
-        self.hours = self.__get_hrs_wrked()
         self.date = datetime.now().strftime("%m-%d-%Y")
 
     def __get_hrs(self):
@@ -35,13 +39,14 @@ class LoggedUserHrs:
                 dates.append(self.report[i][0])
         return dates
 
-    def __get_hrs_wrked(self):
+    def get_hrs_wrked(self):
         '''
             Returns a Dictionary with the date hours were
-            logged as the Key and the hours as the Value.
+            logged as the Key as a String type and the
+            hours as the Value as a Float.
 
             Example:
-                {'Thu 1/30' : 8}
+                {'Thu 1/30' : 8.0}
         '''
         weekHrs = dict()
         dates = self.__get_dates()
@@ -50,6 +55,49 @@ class LoggedUserHrs:
             weekHrs.update({dates[i]: hrs[i]})
 
         return weekHrs
+
+    def get_weekday_hrs(self):
+        '''
+            Returns Pay Period weekday hours.
+            Weeks start on Thursday and end on Wednesday.
+        '''
+        weekDayHrs = {}
+
+        for i in self.get_hrs_wrked().keys():
+            if re.search("(Thu|Fri|Mon|Tue|Wed)", i) is not None:
+                weekDayHrs.update({
+                    i: self.get_hrs_wrked()[i]
+                })
+
+        return weekDayHrs
+
+    def get_weekend_hrs(self):
+        '''
+            Returns Pay Period weekend hours.
+        '''
+        weekEndHrs = {}
+
+        for i in self.get_hrs_wrked().keys():
+            if re.search("(Sat|Sun)", i) is not None:
+                weekEndHrs.update({
+                    i: self.get_hrs_wrked()[i]
+                })
+
+        return weekEndHrs
+
+    def get_ot_logged(self):
+        total = sum(self.get_hrs_wrked().values())
+
+        if total < 80.0:
+            return {}
+
+        otEarned = {}
+
+        for i in self.get_weekday_hrs().keys():
+            curr = self.get_weekday_hrs()[i]-8.0
+            otEarned.update({i: curr})
+
+        return otEarned
 
 
 def hrsFormatter(arr):
@@ -76,7 +124,10 @@ def func(sheet):
         if sheet.cell_value(rowx=i, colx=1) == "User Name:":
             userStats = [sheet.cell_value(rowx=i, colx=3)]
             tableStart = i
-            pass
+
+    for i in range(sheet.nrows):
+        if sheet.cell_value(rowx=i, colx=1) == "User Name:":
+            userStats = [sheet.cell_value(rowx=i, colx=3)]
 
     for j in range(sheet.ncols):
         if sheet.cell_value(rowx=tableStart+2, colx=j) == "DAILY":
@@ -98,15 +149,31 @@ users = []
 for i in range(0, workbook.nsheets):
     currUser = func(workbook.sheet_by_index(i))
     if len(currUser) != 1:
-        users.append(LoggedUserHrs(currUser[0], currUser[1:]))
+        users.append(User(currUser[0], currUser[1:]))
 
-gp = users[0]
+for i in range(len(users)):
+    gp = users[i]
 
-print("{0}\n".format(
-    sum(gp.hours.values())
-))
+    actualWeekly = sum(gp.get_weekday_hrs().values())
+    weekend = sum(gp.get_weekend_hrs().values())
+    otWeekly = sum(gp.get_ot_logged().values())
 
-for i in gp.hours.keys():
-    print("'{0}', {1},".format(
-        i, gp.hours[i]
-    ))
+    print(f"{i}, '{gp.name}'")
+    print("Total:\t", sum(gp.get_hrs_wrked().values()),
+          "\nRT:\t", actualWeekly - otWeekly,
+          "\nOT:\t", otWeekly, "\nWknd:\t", weekend)
+    print()
+
+
+'''
+    TODO:
+        1. Make a function that will iterate over the report to find a value.
+            a. func will iterate over a range to find target
+            b. func(minx, miny, maxx, maxy, target)
+            c. this is a nicer abstraction
+
+        2. Get date from report and save it to User object
+            - Cell where date is recorded: (33, 18)
+
+        ?. Design schema for saving data and creating relations, RDBMS.
+'''
