@@ -153,25 +153,53 @@ def xlsParser(sheet, mincolx, minrowy, maxcolx, maxrowy, target, xbuff) -> []:
                 if re.search(pattern=target, string=curr) is not None:
                     j += xbuff
                     answer.append(sheet.cell_value(i, j))
-                    answer.append([j, i])
+                    answer.append([i, j])
             else:
                 curr = sheet.cell_value(i, j)
                 if re.search(pattern=target, string=curr) is not None:
                     answer.append(curr)
-                    answer.append([j, i])
+                    answer.append([i, j])
     return answer
 
 
 newUsers = []
 
 for i in range(0, workbook.nsheets):
-    date = xlsParser(sheet=workbook.sheet_by_index(i), mincolx=0, minrowy=0,
+    currentSheet = workbook.sheet_by_index(i)
+    date = xlsParser(sheet=currentSheet, mincolx=0, minrowy=0,
                      maxcolx=25, maxrowy=25, target="[0-9].(AM)", xbuff=None)
 
-    name = xlsParser(sheet=workbook.sheet_by_index(i), mincolx=0, minrowy=0,
+    name = xlsParser(sheet=currentSheet, mincolx=0, minrowy=0,
                      maxcolx=35, maxrowy=35, target="User Name:", xbuff=2)
 
-    report = func(workbook.sheet_by_index(i))[1:]
+    report = func(currentSheet)[1:]
+
+    dailyHrsCol = xlsParser(sheet=workbook.sheet_by_index(i),
+                            mincolx=0, minrowy=0,
+                            maxcolx=currentSheet.ncols,
+                            maxrowy=currentSheet.nrows,
+                            target="DAILY",
+                            xbuff=None)[1]
+
+    report2 = xlsParser(sheet=currentSheet,
+                        mincolx=dailyHrsCol[1], minrowy=dailyHrsCol[0],
+                        maxcolx=dailyHrsCol[1]+1,
+                        maxrowy=currentSheet.nrows,
+                        target="[0-9]*:[0-9]*",
+                        xbuff=None)
+
+    hrs = []
+    for j in range(dailyHrsCol[0], currentSheet.nrows):
+        startRow = j
+        if startRow < currentSheet.nrows:
+            hrs.append(xlsParser(sheet=currentSheet,
+                                 mincolx=dailyHrsCol[1], minrowy=startRow,
+                                 maxcolx=dailyHrsCol[1]+1,
+                                 maxrowy=currentSheet.nrows,
+                                 target="[0-9]*:[0-9]*",
+                                 xbuff=None)[0])
+
+    print(hrs)
 
     newUsers.append(User(name=name[0], date=date[0], report=report))
 
