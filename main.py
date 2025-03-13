@@ -1,6 +1,5 @@
 import xlrd
 import re
-from datetime import datetime
 
 workbook = xlrd.open_workbook('MAIN OFFICE DETAIL PAYROLL REPORT.xls')
 
@@ -11,15 +10,15 @@ class User:
         of the users' logged hours.
     '''
 
-    def __init__(self, name, report):
+    def __init__(self, name, report, date):
         '''
             User Interface
         '''
         self.name = str(name)
         self.report = report
-        self.date = datetime.now().strftime("%m-%d-%Y")
+        self.date = date
 
-    def __get_hrs(self):
+    def __get_hrs(self) -> []:
         '''
             Returns the Hours that were clocked in by date.
         '''
@@ -29,7 +28,7 @@ class User:
                 hours.append(self.report[i][1])
         return hours
 
-    def __get_dates(self):
+    def __get_dates(self) -> []:
         '''
             Returns the Dates where hours were clocked in.
         '''
@@ -39,7 +38,7 @@ class User:
                 dates.append(self.report[i][0])
         return dates
 
-    def get_hrs_wrked(self):
+    def get_hrs_wrked(self) -> {}:
         '''
             Returns a Dictionary with the date hours were
             logged as the Key as a String type and the
@@ -56,7 +55,7 @@ class User:
 
         return weekHrs
 
-    def get_weekday_hrs(self):
+    def get_weekday_hrs(self) -> {}:
         '''
             Returns Pay Period weekday hours.
             Weeks start on Thursday and end on Wednesday.
@@ -71,7 +70,7 @@ class User:
 
         return weekDayHrs
 
-    def get_weekend_hrs(self):
+    def get_weekend_hrs(self) -> {}:
         '''
             Returns Pay Period weekend hours.
         '''
@@ -85,7 +84,7 @@ class User:
 
         return weekEndHrs
 
-    def get_ot_logged(self):
+    def get_ot_logged(self) -> {}:
         total = sum(self.get_hrs_wrked().values())
 
         if total < 80.0:
@@ -118,7 +117,7 @@ def hrsFormatter(arr):
         return stack[0] + stack[1]
 
 
-def func(sheet):
+def func(sheet) -> []:
     weeklyHrs = []
     for i in range(sheet.nrows):
         if sheet.cell_value(rowx=i, colx=1) == "User Name:":
@@ -144,12 +143,48 @@ def func(sheet):
     return userStats
 
 
+def xlsParser(sheet, mincolx, minrowy, maxcolx, maxrowy, target, xbuff) -> []:
+    answer = []
+
+    for i in range(minrowy, maxrowy):
+        for j in range(mincolx, maxcolx):
+            if xbuff is not None:
+                curr = sheet.cell_value(i, j)
+                if re.search(pattern=target, string=curr) is not None:
+                    j += xbuff
+                    answer.append(sheet.cell_value(i, j))
+                    answer.append([j, i])
+            else:
+                curr = sheet.cell_value(i, j)
+                if re.search(pattern=target, string=curr) is not None:
+                    answer.append(curr)
+                    answer.append([j, i])
+    return answer
+
+
+newUsers = []
+
+for i in range(0, workbook.nsheets):
+    date = xlsParser(sheet=workbook.sheet_by_index(i), mincolx=0, minrowy=0,
+                     maxcolx=25, maxrowy=25, target="[0-9].(AM)", xbuff=None)
+
+    name = xlsParser(sheet=workbook.sheet_by_index(i), mincolx=0, minrowy=0,
+                     maxcolx=35, maxrowy=35, target="User Name:", xbuff=2)
+
+    report = func(workbook.sheet_by_index(i))[1:]
+
+    newUsers.append(User(name=name[0], date=date[0], report=report))
+
+
+print(f"'{newUsers[0].name}'", f"'{newUsers[0].date}'")
+print(sum(newUsers[0].get_hrs_wrked().values()))
+
 users = []
 
 for i in range(0, workbook.nsheets):
     currUser = func(workbook.sheet_by_index(i))
     if len(currUser) != 1:
-        users.append(User(currUser[0], currUser[1:]))
+        users.append(User(currUser[0], currUser[1:], ""))
 
 for i in range(len(users)):
     gp = users[i]
@@ -163,7 +198,6 @@ for i in range(len(users)):
           "\nRT:\t", actualWeekly - otWeekly,
           "\nOT:\t", otWeekly, "\nWknd:\t", weekend)
     print()
-
 
 '''
     TODO:
