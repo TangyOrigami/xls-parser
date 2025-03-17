@@ -181,31 +181,38 @@ for i in range(0, workbook.nsheets):
                             target="DAILY",
                             xbuff=None)[1]
 
-    report2 = xlsParser(sheet=currentSheet,
-                        mincolx=dailyHrsCol[1], minrowy=dailyHrsCol[0],
-                        maxcolx=dailyHrsCol[1]+1,
-                        maxrowy=currentSheet.nrows,
-                        target="[0-9]*:[0-9]*",
-                        xbuff=None)
+    temp = []
 
-    hrs = []
-    for j in range(dailyHrsCol[0], currentSheet.nrows):
-        startRow = j
-        if startRow < currentSheet.nrows:
-            hrs.append(xlsParser(sheet=currentSheet,
-                                 mincolx=dailyHrsCol[1], minrowy=startRow,
-                                 maxcolx=dailyHrsCol[1]+1,
-                                 maxrowy=currentSheet.nrows,
-                                 target="[0-9]*:[0-9]*",
-                                 xbuff=None)[0])
+    temp.append(xlsParser(sheet=workbook.sheet_by_index(i),
+                          mincolx=dailyHrsCol[1], minrowy=dailyHrsCol[0]+1,
+                          maxcolx=dailyHrsCol[1]+1,
+                          maxrowy=currentSheet.nrows,
+                          target="[0-9]*:[0-9]*",
+                          xbuff=None)
 
-    print(hrs)
+                )
 
-    newUsers.append(User(name=name[0], date=date[0], report=report))
+    dates = []
+    allHrs = []
+    datesNhrs = []
+
+    for i in range(0, len(temp[0]), 2):
+        allHrs.append(hrsFormatter(temp[0][i]))
+
+    for i in range(1, len(temp[0]), 2):
+        currDate = [temp[0][i][0], 1]
+        dates.append(
+            f"{currentSheet.cell_value(rowx=currDate[0], colx=currDate[1])}")
+
+    for i in range(len(dates)):
+        datesNhrs.append([dates[i], allHrs[i]])
+
+    newUsers.append(User(name=name[0], date=date[0], report=datesNhrs))
 
 
 print(f"'{newUsers[0].name}'", f"'{newUsers[0].date}'")
 print(sum(newUsers[0].get_hrs_wrked().values()))
+print(newUsers[0].get_hrs_wrked())
 
 users = []
 
