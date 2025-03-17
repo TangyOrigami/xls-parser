@@ -210,10 +210,6 @@ for i in range(0, workbook.nsheets):
     newUsers.append(User(name=name[0], date=date[0], report=datesNhrs))
 
 
-print(f"'{newUsers[0].name}'", f"'{newUsers[0].date}'")
-print(sum(newUsers[0].get_hrs_wrked().values()))
-print(newUsers[0].get_hrs_wrked())
-
 users = []
 
 for i in range(0, workbook.nsheets):
@@ -221,28 +217,22 @@ for i in range(0, workbook.nsheets):
     if len(currUser) != 1:
         users.append(User(currUser[0], currUser[1:], ""))
 
-for i in range(len(users)):
-    gp = users[i]
+for i in range(len(newUsers)):
+    gp = newUsers[i]
 
     actualWeekly = sum(gp.get_weekday_hrs().values())
     weekend = sum(gp.get_weekend_hrs().values())
     otWeekly = sum(gp.get_ot_logged().values())
 
-    print(f"{i}, '{gp.name}'")
+    print(f"{i}, '{gp.name}', '{gp.date}'")
     print("Total:\t", sum(gp.get_hrs_wrked().values()),
           "\nRT:\t", actualWeekly - otWeekly,
-          "\nOT:\t", otWeekly, "\nWknd:\t", weekend)
+          "\nOT:\t", otWeekly, "\nWknd:\t", weekend,
+          "\nLog:\n", gp.get_hrs_wrked())
     print()
 
 '''
     TODO:
-        1. Make a function that will iterate over the report to find a value.
-            a. func will iterate over a range to find target
-            b. func(minx, miny, maxx, maxy, target)
-            c. this is a nicer abstraction
-
-        2. Get date from report and save it to User object
-            - Cell where date is recorded: (33, 18)
 
         ?. Design schema for saving data and creating relations, RDBMS.
 '''
