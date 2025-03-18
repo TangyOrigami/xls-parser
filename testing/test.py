@@ -1,21 +1,21 @@
 import xlrd
-from user import User
-from parser import Parser as p
+from Util.user import User
+from Util.parser import Parser as p
 
-workbook = xlrd.open_workbook('MAIN OFFICE DETAIL PAYROLL REPORT.xls')
-
+workbook = xlrd.open_workbook('payroll-1.xls')
 
 newUsers = []
 
 for i in range(0, workbook.nsheets):
     currentSheet = workbook.sheet_by_index(i)
     date = p.xlsParser(sheet=currentSheet, mincolx=0, minrowy=0,
-                       maxcolx=25, maxrowy=25, target="[0-9].(AM)", xbuff=None)
+                       maxcolx=25, maxrowy=25, target="[0-9].(AM|PM)",
+                       xbuff=None)
 
     name = p.xlsParser(sheet=currentSheet, mincolx=0, minrowy=0,
                        maxcolx=35, maxrowy=35, target="User Name:", xbuff=2)
 
-    dailyHrsCol = p.xlsParser(sheet=workbook.sheet_by_index(i),
+    dailyHrsCol = p.xlsParser(sheet=currentSheet,
                               mincolx=0, minrowy=0,
                               maxcolx=currentSheet.ncols,
                               maxrowy=currentSheet.nrows,
@@ -24,7 +24,7 @@ for i in range(0, workbook.nsheets):
 
     temp = []
 
-    temp.append(p.xlsParser(sheet=workbook.sheet_by_index(i),
+    temp.append(p.xlsParser(sheet=currentSheet,
                             mincolx=dailyHrsCol[1], minrowy=dailyHrsCol[0]+1,
                             maxcolx=dailyHrsCol[1]+1,
                             maxrowy=currentSheet.nrows,
@@ -33,11 +33,11 @@ for i in range(0, workbook.nsheets):
                 )
 
     dates = []
-    allHrs = []
+    hrs = []
     datesNhrs = []
 
     for i in range(0, len(temp[0]), 2):
-        allHrs.append(p.hrsFormatter(temp[0][i]))
+        hrs.append(p.hrsFormatter(temp[0][i]))
 
     for i in range(1, len(temp[0]), 2):
         currDate = [temp[0][i][0], 1]
@@ -45,7 +45,7 @@ for i in range(0, workbook.nsheets):
             f"{currentSheet.cell_value(rowx=currDate[0], colx=currDate[1])}")
 
     for i in range(len(dates)):
-        datesNhrs.append([dates[i], allHrs[i]])
+        datesNhrs.append([dates[i], hrs[i]])
 
     newUsers.append(User(name=name[0], date=date[0], report=datesNhrs))
 
