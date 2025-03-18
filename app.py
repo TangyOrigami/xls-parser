@@ -1,5 +1,5 @@
 import sys
-from Util.controller import Controller as c
+from util.controller import Controller as c
 from PyQt6.QtWidgets import (QApplication, QWidget, QPushButton,
                              QFileDialog, QVBoxLayout, QLabel)
 from PyQt6.QtCore import Qt

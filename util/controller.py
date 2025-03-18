@@ -1,6 +1,6 @@
 import xlrd
-from Util.user import User
-from Util.parser import Parser as p
+from util.user import User
+from util.parser import Parser as p
 
 
 class Controller:

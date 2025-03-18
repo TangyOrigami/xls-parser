@@ -1,8 +1,8 @@
 import xlrd
-from Util.user import User
-from Util.parser import Parser as p
+from util.user import User
+from util.parser import Parser as p
 
-workbook = xlrd.open_workbook('payroll-1.xls')
+workbook = xlrd.open_workbook('../sample-data/payroll-1.xls')
 
 newUsers = []
 
