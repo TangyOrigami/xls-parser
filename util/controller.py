@@ -1,4 +1,5 @@
 import xlrd
+from datetime import datetime, timedelta
 from util.user import User
 from util.parser import Parser as p
 
@@ -26,11 +27,12 @@ class Controller:
             datesNhrs = []
 
             currentSheet = workbook.sheet_by_index(i)
-            date = p.xlsParser(sheet=currentSheet,
-                               mincolx=0, minrowy=0,
-                               maxcolx=25, maxrowy=25,
-                               target="[0-9].(AM|PM)",
-                               xbuff=None)
+            date = datetime.strptime(
+                p.xlsParser(sheet=currentSheet,
+                            mincolx=0, minrowy=0,
+                            maxcolx=25, maxrowy=25,
+                            target="[0-9].(AM|PM)",
+                            xbuff=None)[0].split(" ", 1)[0], "%m/%d/%Y").date()
 
             name = p.xlsParser(sheet=currentSheet,
                                mincolx=0, minrowy=0,
@@ -65,17 +67,20 @@ class Controller:
             for i in range(len(dates)):
                 datesNhrs.append([dates[i], hrs[i]])
 
-            users.append(User(name=name[0], date=date[0], report=datesNhrs))
+            curr_user = User(name=name[0], start_date=date, report=datesNhrs)
+
+            users.append(curr_user)
 
         return users
 
     def _test_print(users):
         '''
-            Testing method that prints the result from `Controller.extract_data()`
-            to the terminal.
+            Testing method that prints the result from
+            `Controller.extract_data()` to the terminal.
 
             Development use only.
         '''
+
         for i in range(len(users)):
             gp = users[i]
 
@@ -83,7 +88,7 @@ class Controller:
             weekend = sum(gp.get_weekend_hrs().values())
             otWeekly = sum(gp.get_ot_logged().values())
 
-            print(f"{i}, '{gp.name}', '{gp.date}'")
+            print(f"{i}, '{gp.name}', '{gp.start_date}'")
             print("Total:\t", sum(gp.get_hrs_wrked().values()),
                   "\nRT:\t", actualWeekly - otWeekly,
                   "\nOT:\t", otWeekly, "\nWknd:\t", weekend,

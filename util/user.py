@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta
 
 
 class User:
@@ -7,13 +8,14 @@ class User:
         of the users' logged hours.
     '''
 
-    def __init__(self, name, report, date):
+    def __init__(self, name, report, start_date):
         '''
             User Interface
         '''
         self.name = str(name)
         self.report = report
-        self.date = date
+        self.start_date = start_date
+        self.end_date = start_date + timedelta(days=14)
 
     def __get_hrs(self) -> []:
         '''
@@ -25,27 +27,30 @@ class User:
                 hours.append(self.report[i][1])
         return hours
 
-    def __get_dates(self) -> []:
+    def __get_report_dates(self) -> []:
         '''
             Returns the Dates where hours were clocked in.
         '''
         dates = list()
         for i in range(len(self.report)):
             if re.search("[0-9]", self.report[i][0]) is not None:
-                dates.append(self.report[i][0])
+                curr_date = self.report[i][0].split(
+                    " ", 1)[1] + "/"+str(self.start_date.year)
+                dates.append(str(datetime.strptime(
+                    curr_date, "%m/%d/%Y").date()))
         return dates
 
     def get_hrs_wrked(self) -> {}:
         '''
             Returns a Dictionary with the date hours were
-            logged as the Key as a String type and the
+            logged as the Key as a Date type and the
             hours as the Value as a Float.
 
             Example:
-                {'Thu 1/30' : 8.0}
+                {datetime.date(2025, 1, 30) : 8.0}
         '''
         weekHrs = dict()
-        dates = self.__get_dates()
+        dates = self.__get_report_dates()
         hrs = self.__get_hrs()
         for i in range(len(dates)):
             weekHrs.update({dates[i]: hrs[i]})
@@ -94,3 +99,11 @@ class User:
             otEarned.update({i: curr})
 
         return otEarned
+
+    def pay_period_dates(self) -> []:
+        dates = []
+
+        for i in range(14):
+            dates.append(str(self.start_date + timedelta(days=i)))
+
+        return dates
