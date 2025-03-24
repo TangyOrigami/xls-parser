@@ -42,12 +42,13 @@ class User:
 
     def get_hrs_wrked(self) -> {}:
         '''
-            Returns a Dictionary with the date hours were
-            logged as the Key as a Date type and the
-            hours as the Value as a Float.
+            Returns a Dictionary with the dates of the pay period
+            and the hours that were logged per day.
+
+            The hash map follows this format: { Date : Hours }
 
             Example:
-                {datetime.date(2025, 1, 30) : 8.0}
+                {'2025-1-30' : 8.0}
         '''
         weekHrs = dict()
         dates = self.__get_report_dates()
@@ -59,8 +60,7 @@ class User:
 
     def get_weekday_hrs(self) -> {}:
         '''
-            Returns Pay Period weekday hours.
-            Weeks start on Thursday and end on Wednesday.
+            Returns Pay Period weekday (Monday-Friday) hours.
         '''
         weekDayHrs = {}
 
@@ -74,7 +74,7 @@ class User:
 
     def get_weekend_hrs(self) -> {}:
         '''
-            Returns Pay Period weekend hours.
+            Returns Pay Period weekend (Sat-Sun) hours.
         '''
         weekEndHrs = {}
 
@@ -87,6 +87,9 @@ class User:
         return weekEndHrs
 
     def get_ot_logged(self) -> {}:
+        '''
+            Returns Over Time that was logged.
+        '''
         total = sum(self.get_hrs_wrked().values())
 
         if total < 80.0:

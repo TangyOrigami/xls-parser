@@ -1,20 +1,34 @@
 import sys
-import itertools
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QFileDialog,
     QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
-    QHBoxLayout
+    QMainWindow, QMenu
 )
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QAction
 from util.controller import Controller as c
 
 
-class FileUploadWindow(QWidget):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Excel File Parser")
-        self.setGeometry(400, 200, 800, 600)
+        self.show()
+
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.contextMenuEvent)
+
+    def contextMenuEvent(self, pos):
+        context = QMenu(self)
+        context.addAction(QAction("test 1", self))
+        context.addAction(QAction("test 2", self))
+        context.addAction(QAction("test 3", self))
+        context.exec(self.mapToGlobal(pos))
+
+
+class FileUploadWidget(QWidget):
+    def __init__(self):
+        super().__init__()
         self.setAcceptDrops(True)  # Enable drag and drop
 
         # Title Label
@@ -130,7 +144,7 @@ class FileUploadWindow(QWidget):
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = FileUploadWindow()
+    app = QApplication([])
+    window = MainWindow()
     window.show()
     sys.exit(app.exec())
