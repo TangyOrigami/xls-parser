@@ -1,0 +1,6 @@
+et_xmlfile==2.0.0
+openpyxl==3.1.5
+PyQt6==6.8.1
+PyQt6-Qt6==6.8.2
+PyQt6_sip==13.10.0
+xlrd==2.0.1

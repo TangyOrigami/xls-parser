@@ -98,11 +98,7 @@ class FileUploadWindow(QWidget):
         for row_id in range(0, len(users)):
             user = users[row_id]
             user_info = {"Name": user.name, "Start Date": user.start_date}
-            user_values = user.get_hrs_wrked()
-
-            user_data = user_info.copy()
-            for key, value in user_values.items():
-                user_data[key] = value
+            user_data = {**user_info, **user.get_hrs_wrked()}
 
             for col_id in range(len(headers)):
                 if headers[col_id] in user_data.keys():
