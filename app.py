@@ -1,10 +1,11 @@
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QFileDialog, QVBoxLayout
+    QApplication, QMainWindow, QFileDialog
 )
 
 from PyQt6.QtGui import QAction
 from ui.fileupload import FileUploadWidget
+from ui.tabs import TabMenu
 
 
 class MainWindow(QMainWindow):
@@ -13,12 +14,13 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("My App")
 
-        self.file_upload_widget = FileUploadWidget()
+        self.tab_menu = TabMenu()
 
         # Menu
         open_button = QAction("Open", self)
         open_button.setStatusTip("Open a file")
-        open_button.triggered.connect(self.file_upload_widget.open_file_dialog)
+        open_button.triggered.connect(
+            self.tab_menu.file_upload_widget.open_file_dialog)
 
         save_button = QAction("Save", self)
         save_button.setStatusTip("Save current view")
@@ -46,12 +48,7 @@ class MainWindow(QMainWindow):
 
         file_menu.addAction(close_button)
 
-        self.setCentralWidget(self.file_upload_widget)
-
-    def open_button_action(self, s):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Excel File", "", "Excel Files (*.xls)")
-        self.process_file(file_path)
+        self.setCentralWidget(self.tab_menu)
 
     def save_button_action(self, s):
         print("save", s)

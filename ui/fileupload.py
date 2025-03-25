@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
-    QWidget, QFileDialog, QVBoxLayout, QLabel,
-    QTableWidget, QTableWidgetItem
+    QWidget, QPushButton, QFileDialog,
+    QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem
 )
 
 from PyQt6.QtCore import Qt
@@ -11,6 +11,12 @@ class FileUploadWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)  # Enable drag and drop
+
+        # Title Label
+        self.title_label = QLabel("Title", self)
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label.setStyleSheet(
+            "font-size: 20px; padding: 10px;")
 
         # Table Widget for Displaying Data
         self.table_widget = QTableWidget()
@@ -23,12 +29,16 @@ class FileUploadWidget(QWidget):
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        middle_layout = QVBoxLayout()
+        middle_layout.addWidget(self.title_label)
+
         bottom_layout = QVBoxLayout()
         bottom_layout.addWidget(self.table_widget)
         bottom_layout.addWidget(self.status_label)
 
         # Main Layout
         main_layout = QVBoxLayout(self)
+        main_layout.addLayout(middle_layout)
         main_layout.addLayout(bottom_layout)
 
         self.setLayout(main_layout)
