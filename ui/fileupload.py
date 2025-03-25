@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QWidget, QPushButton, QFileDialog,
+    QWidget, QFileDialog, QPushButton,
     QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem
 )
 
@@ -18,6 +18,11 @@ class FileUploadWidget(QWidget):
         self.title_label.setStyleSheet(
             "font-size: 20px; padding: 10px;")
 
+        # Test Button
+        self.count = 0
+        self.button = QPushButton(f"Click Count: {self.count}", self)
+        self.button.clicked.connect(self.count_clicks)
+
         # Table Widget for Displaying Data
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(0)  # Will be set after parsing
@@ -31,6 +36,7 @@ class FileUploadWidget(QWidget):
 
         middle_layout = QVBoxLayout()
         middle_layout.addWidget(self.title_label)
+        middle_layout.addWidget(self.button)
 
         bottom_layout = QVBoxLayout()
         bottom_layout.addWidget(self.table_widget)
@@ -82,6 +88,10 @@ class FileUploadWidget(QWidget):
 
                     self.__add_cell_value(
                         row_id=row_id, col_id=col_id, value=value)
+
+    def count_clicks(self):
+        self.count += 1
+        self.button.setText(f"Click Count: {self.count}")
 
     def __add_cell_value(self, row_id, col_id, value):
         item = QTableWidgetItem(

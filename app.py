@@ -1,10 +1,9 @@
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QFileDialog
+    QApplication, QMainWindow
 )
 
 from PyQt6.QtGui import QAction
-from ui.fileupload import FileUploadWidget
 from ui.tabs import TabMenu
 
 
