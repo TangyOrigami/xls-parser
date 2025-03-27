@@ -1,10 +1,10 @@
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget, QFileDialog, QPushButton,
     QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem
 )
 
-from PyQt6.QtCore import Qt
-from util.controller import Controller as c
+from util.controller import Controller
 
 
 class FileUploadWidget(QWidget):
@@ -13,7 +13,7 @@ class FileUploadWidget(QWidget):
         self.setAcceptDrops(True)  # Enable drag and drop
 
         # Title Label
-        self.title_label = QLabel("Title", self)
+        self.title_label = QLabel("Table", self)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_label.setStyleSheet(
             "font-size: 20px; padding: 10px;")
@@ -59,7 +59,8 @@ class FileUploadWidget(QWidget):
         self.status_label.setText("Processing file...")
 
         try:
-            users = c.extract_data(file_path)
+            c = Controller()
+            users = c.extract_data(file_path=file_path)
             self.populate_table(users)
             self.status_label.setText("File successfully processed!")
         except Exception as e:
@@ -71,7 +72,7 @@ class FileUploadWidget(QWidget):
             return
 
         pay_period = users[0].pay_period_dates()
-        headers = ["Name", "Start Date"] + pay_period
+        headers = ["employee_name", "employee_group"] + pay_period
 
         self.table_widget.setColumnCount(len(headers))
         self.table_widget.setRowCount(len(users))
@@ -79,7 +80,8 @@ class FileUploadWidget(QWidget):
 
         for row_id in range(0, len(users)):
             user = users[row_id]
-            user_info = {"Name": user.name, "Start Date": user.start_date}
+            user_info = {"employee_name": user.name,
+                         "employee_group": user.group}
             user_data = {**user_info, **user.get_hrs_wrked()}
 
             for col_id in range(len(headers)):

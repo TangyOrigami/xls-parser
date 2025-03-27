@@ -1,17 +1,19 @@
 import sys
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow
 )
 
 from PyQt6.QtGui import QAction
 from ui.tabs import TabMenu
+from util.db import DBInterface
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("My App")
+        self.setWindowTitle("Time Sheet App")
 
         self.tab_menu = TabMenu()
 
@@ -47,6 +49,8 @@ class MainWindow(QMainWindow):
 
         file_menu.addAction(close_button)
 
+        self.app_setup()
+
         self.setCentralWidget(self.tab_menu)
 
     def save_button_action(self, s):
@@ -54,6 +58,11 @@ class MainWindow(QMainWindow):
 
     def save_as_button_action(self, s):
         print("save as", s)
+
+    def app_setup(self):
+        db = DBInterface("app.db")
+
+        db.initialize_db(verbose=True)
 
 
 if __name__ == '__main__':

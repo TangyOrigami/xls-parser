@@ -8,12 +8,14 @@ class User:
         of the users' logged hours.
     '''
 
-    def __init__(self, name, report, start_date):
+    def __init__(self, name, group, report, start_date, comments):
         '''
             User Interface
         '''
         self.name = str(name)
+        self.group = str(group)
         self.report = report
+        self.comments = comments
         self.start_date = start_date
         self.end_date = start_date + timedelta(days=14)
 
@@ -48,7 +50,7 @@ class User:
             The hash map follows this format: { Date : Hours }
 
             Example:
-                {'2025-1-30' : 8.0}
+                {'2025-1-30' : 8.0, '2025-1-31' : 8.5, ...}
         '''
         weekHrs = dict()
         dates = self.__get_report_dates()

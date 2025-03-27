@@ -23,19 +23,26 @@ class Parser:
     def xlsParser(sheet,
                   mincolx, minrowy,
                   maxcolx, maxrowy,
-                  target, xbuff) -> []:
+                  target, xbuff, ybuff) -> []:
         answer = []
 
-        for i in range(minrowy, maxrowy):
-            for j in range(mincolx, maxcolx):
-                curr = sheet.cell_value(i, j)
+        for row in range(minrowy, maxrowy):
+            for col in range(mincolx, maxcolx):
+                curr = sheet.cell_value(row, col)
                 if xbuff is not None:
                     if re.search(pattern=target, string=curr) is not None:
-                        j += xbuff
-                        answer.append(sheet.cell_value(i, j))
-                        answer.append([i, j])
+                        col += xbuff
+                        answer.append(sheet.cell_value(row, col))
+                        answer.append([row, col])
+                        col -= xbuff
+                elif ybuff is not None:
+                    if re.search(pattern=target, string=curr) is not None:
+                        row += ybuff
+                        answer.append(sheet.cell_value(row, col))
+                        answer.append([row, col])
+                        row -= ybuff
                 else:
                     if re.search(pattern=target, string=curr) is not None:
                         answer.append(curr)
-                        answer.append([i, j])
+                        answer.append([row, col])
         return answer
