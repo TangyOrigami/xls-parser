@@ -1,5 +1,5 @@
 import sqlite3 as db
-from typing import Optional
+from typing import Optional, List, Tuple
 from util.logger import CLogger
 
 
@@ -11,6 +11,8 @@ class DBInterface:
         self.db_name = db_name
 
     def initialize_db(self, verbose: Optional[bool] = False) -> None:
+        SCHEMA_VERSION = "1.0"
+
         sql = [
             """
             CREATE TABLE IF NOT EXISTS Employee(
@@ -61,48 +63,83 @@ class DBInterface:
             )
             """,
 
-            """
+            f'''
             INSERT OR REPLACE INTO Meta (Key, Value)
-            VALUES ("SchemaVersion", "1.0")
-            """
+            VALUES ("SchemaVersion", "{SCHEMA_VERSION}")
+            '''
         ]
 
-        self.__sql_runner(sql, verbose)
+        self.__run_sql_batch(sql, verbose)
 
-    def save_employee(self, employee_name, employee_group):
+    def save_employee(self, employee_name: str,
+                      employee_group: Optional[str] = None):
+        """
+            Adds a new employee if not already present.
+        """
+
         sql = [
-            f"""
-            INSERT INTO Employee (
-                EmployeeName,
-                EmployeeGroup
-            )
-            VALUES({employee_name}, {employee_group})
             """
+        INSERT OR IGNORE INTO Employee (EmployeeName, EmployeeGroup)
+        VALUES (?, ?)
+        """
         ]
 
-        print(sql[0])
+        self.__run_sql(sql=sql, args=(
+            employee_name, employee_group), verbose=True)
 
-    def __sql_runner(self, sql: [], verbose: Optional[bool] = False) -> None:
+    def __run_sql_batch(self,
+                        sql_statements: List[str],
+                        verbose: bool = False
+                        ) -> None:
         """
-            Private method to execute SQL statements.
+            Private method to execute SQL statements without parameters.
         """
+
         try:
+
             with db.connect(self.db_name) as conn:
-
                 conn.execute("PRAGMA foreign_keys = ON;")
-
                 cur = conn.cursor()
 
-                for statement in sql:
+                for statement in sql_statements:
                     if verbose:
                         logger.info("Executing SQL: %s",
                                     statement.strip().splitlines()[0])
                     cur.execute(statement)
 
-                conn.commit()
-                if verbose:
-                    logger.info("Database schema initialized successfully.")
+            conn.commit()
+            if verbose:
+                logger.info(
+                    "__run_sql_batch: SQL executed successfully.")
 
         except db.Error as e:
             logger.exception("Failed to initialize database schema: %s", e)
             raise
+
+    def __run_sql(self,
+                  sql: str,
+                  args: tuple = (),
+                  verbose: bool = False
+                  ) -> None:
+        """
+            Private method to execute SQL statements with parameters.
+        """
+
+        try:
+            with db.connect(self.db_name) as conn:
+                conn.execute("PRAGMA foreign_keys = ON;")
+                if verbose:
+                    logger.info("Executing SQL: %s | Args: %s",
+                                sql.strip().splitlines()[0], args)
+                conn.execute(sql, args)
+                conn.commit()
+                if verbose:
+                    logger.info(
+                        "__run_sql: SQL executed successfully.")
+
+        except db.Error as e:
+            logger.exception("Failed to initialize database schema: %s", e)
+            raise
+
+    def __run_sql_fetch(self):
+        pass
