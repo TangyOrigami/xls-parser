@@ -1,7 +1,6 @@
 import xlrd
 from datetime import datetime
 from util.user import User
-from util.db import DBInterface
 from util.logger import CLogger
 from util.parser import Parser as p
 
@@ -71,25 +70,29 @@ class Controller:
             for i in range(len(dates)):
                 datesNhrs.append([dates[i], hrs[i]])
 
-            curr_user = User(name=name[0], group=group,
+            curr_user = User(name=name[0], group=group[0],
                              start_date=date, report=datesNhrs,
                              comments=comments)
+
+            curr_user._print_user_info()
 
             users.append(curr_user)
 
         return users
 
     def __get_date(self, sheet) -> datetime:
-        date = datetime.strptime(
-            p.xlsParser(sheet=sheet,
-                        mincolx=0, minrowy=0,
-                        maxcolx=25, maxrowy=25,
-                        target="[0-9].(AM|PM)",
-                        xbuff=None,
-                        ybuff=None)[0].split(" ", 1)[0], "%m/%d/%Y").date()
+        date = p.xlsParser(sheet=sheet,
+                           mincolx=0, minrowy=0,
+                           maxcolx=25, maxrowy=25,
+                           target="[0-9].(AM|PM)",
+                           xbuff=None,
+                           ybuff=None)
+        date = datetime.strptime(date[0].split(" ", 1)[0],
+                                 "%m/%d/%Y").date()
+
         return date
 
-    def __get_name(self, sheet) -> datetime:
+    def __get_name(self, sheet) -> [str, [int, int]]:
         name = p.xlsParser(sheet=sheet,
                            mincolx=0, minrowy=0,
                            maxcolx=35, maxrowy=35,
@@ -98,16 +101,16 @@ class Controller:
                            ybuff=None)
         return name
 
-    def __get_group(self, sheet) -> datetime:
+    def __get_group(self, sheet) -> [str, [int, int]]:
         group = p.xlsParser(sheet=sheet,
                             mincolx=0, minrowy=0,
                             maxcolx=3, maxrowy=35,
                             target="Employee Group",
                             xbuff=8,
-                            ybuff=None)[0]
+                            ybuff=None)
         return group
 
-    def __get_comm_date(self, sheet) -> datetime:
+    def __get_comm_date(self, sheet) -> [datetime, [int, int]]:
         comm_date = p.xlsParser(sheet=sheet,
                                 mincolx=1, minrowy=sheet.nrows-2,
                                 maxcolx=2,
@@ -117,7 +120,7 @@ class Controller:
                                 ybuff=1)
         return comm_date
 
-    def __get_pi_comm(self, sheet) -> datetime:
+    def __get_pi_comm(self, sheet) -> [str, [int, int]]:
         pi_comm = p.xlsParser(sheet=sheet,
                               mincolx=1, minrowy=sheet.nrows-2,
                               maxcolx=sheet.ncols,
@@ -127,7 +130,7 @@ class Controller:
                               ybuff=1)
         return pi_comm
 
-    def __get_po_comm(self, sheet) -> datetime:
+    def __get_po_comm(self, sheet) -> [str, [int, int]]:
         po_comm = p.xlsParser(sheet=sheet,
                               mincolx=1, minrowy=sheet.nrows-2,
                               maxcolx=sheet.ncols,
@@ -137,7 +140,7 @@ class Controller:
                               ybuff=1)
         return po_comm
 
-    def __get_sp_comm(self, sheet) -> datetime:
+    def __get_sp_comm(self, sheet) -> [str, [int, int]]:
         sp_comm = p.xlsParser(sheet=sheet,
                               mincolx=1, minrowy=sheet.nrows-2,
                               maxcolx=sheet.ncols,
@@ -147,7 +150,7 @@ class Controller:
                               ybuff=1)
         return sp_comm
 
-    def __get_dailyHrsCol(self, sheet) -> datetime:
+    def __get_dailyHrsCol(self, sheet) -> [str, ...]:
         dailyHrsCol = p.xlsParser(sheet=sheet,
                                   mincolx=0, minrowy=0,
                                   maxcolx=sheet.ncols,

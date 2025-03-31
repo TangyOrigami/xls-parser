@@ -64,6 +64,7 @@ class User:
         '''
             Returns Pay Period weekday (Monday-Friday) hours.
         '''
+
         weekDayHrs = {}
 
         for i in self.get_hrs_wrked().keys():
@@ -78,6 +79,7 @@ class User:
         '''
             Returns Pay Period weekend (Sat-Sun) hours.
         '''
+
         weekEndHrs = {}
 
         for i in self.get_hrs_wrked().keys():
@@ -112,3 +114,30 @@ class User:
             dates.append(str(self.start_date + timedelta(days=i)))
 
         return dates
+
+    def __weekday_filter(self) -> [datetime]:
+        start_date = self.start_date
+        end_date = self.end_date
+        filtered_dates = [
+            date for date in self.pay_period_dates()
+            if start_date <= datetime.strptime(date, '%Y-%m-%d').date() <= end_date
+        ]
+
+        return filtered_dates
+
+    def __weekend_filter(self):
+        pass
+
+    def _print_user_info(self):
+        print()
+        print(f"Name: \t{self.name}")
+        print(f"Group: \t{self.group}")
+        print(f"Date: \t{self.start_date}")
+        print(f"Cmnts: \t{self.comments}")
+        print(f"PP: \t{self.__weekday_filter()}")
+        print(f"Total: \t{sum(self.get_hrs_wrked().values())}")
+        print(f"Days: \t{self.get_hrs_wrked().keys()}")
+        print(f"Hours: \t{self.get_hrs_wrked().values()}")
+        print(f"WD: \t{self.get_weekday_hrs()}")
+        print(f"WE: \t{self.get_weekend_hrs()}")
+        print(f"OT: \t{self.get_ot_logged()}")
