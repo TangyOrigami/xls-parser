@@ -72,6 +72,7 @@ class FileUploadWidget(QWidget):
             return
 
         pay_period = users[0].pay_period_dates()
+        pay_period = [str(i) for i in pay_period]
         headers = ["employee_name", "employee_group"] + pay_period
 
         self.table_widget.setColumnCount(len(headers))

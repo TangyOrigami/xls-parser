@@ -24,7 +24,7 @@ class Controller:
         users = []
 
         for i in range(0, workbook.nsheets):
-            temp = []
+            temp_hrs = []
             dates = []
             hrs = []
             datesNhrs = []
@@ -49,21 +49,21 @@ class Controller:
 
             dailyHrsCol = self.__get_dailyHrsCol(currentSheet)
 
-            temp.append(p.xlsParser(sheet=currentSheet,
-                                    mincolx=dailyHrsCol[1],
-                                    minrowy=dailyHrsCol[0]+1,
-                                    maxcolx=dailyHrsCol[1]+1,
-                                    maxrowy=currentSheet.nrows,
-                                    target="[0-9]*:[0-9]*",
-                                    xbuff=None,
-                                    ybuff=None)
-                        )
+            temp_hrs.append(p.xlsParser(sheet=currentSheet,
+                                        mincolx=dailyHrsCol[1],
+                                        minrowy=dailyHrsCol[0]+1,
+                                        maxcolx=dailyHrsCol[1]+1,
+                                        maxrowy=currentSheet.nrows,
+                                        target="[0-9]*:[0-9]*",
+                                        xbuff=None,
+                                        ybuff=None)
+                            )
 
-            for i in range(0, len(temp[0]), 2):
-                hrs.append(p.hrsFormatter(temp[0][i]))
+            for i in range(0, len(temp_hrs[0]), 2):
+                hrs.append(p.hrsFormatter(temp_hrs[0][i]))
 
-            for i in range(1, len(temp[0]), 2):
-                currDate = [temp[0][i][0], 1]
+            for i in range(1, len(temp_hrs[0]), 2):
+                currDate = [temp_hrs[0][i][0], 1]
                 dates.append(
                     f"{currentSheet.cell_value(rowx=currDate[0], colx=currDate[1])}")
 
@@ -159,25 +159,3 @@ class Controller:
                                   xbuff=None,
                                   ybuff=None)[1]
         return dailyHrsCol
-
-    def _test_print(users):
-        '''
-            Testing method that prints the result from
-            `Controller.extract_data()` to the terminal.
-
-            Development use only.
-        '''
-
-        for i in range(len(users)):
-            gp = users[i]
-
-            actualWeekly = sum(gp.get_weekday_hrs().values())
-            weekend = sum(gp.get_weekend_hrs().values())
-            otWeekly = sum(gp.get_ot_logged().values())
-
-            print(f"{i}, '{gp.name}', '{gp.start_date}'")
-            print("Total:\t", sum(gp.get_hrs_wrked().values()),
-                  "\nRT:\t", actualWeekly - otWeekly,
-                  "\nOT:\t", otWeekly, "\nWknd:\t", weekend,
-                  "\nLog:\n", gp.get_hrs_wrked())
-            print()
