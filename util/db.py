@@ -1,7 +1,6 @@
 import sqlite3 as db
-from typing import Optional, List, Tuple
+from typing import Optional, List
 from util.logger import CLogger
-
 
 logger = CLogger().get_logger()
 
@@ -110,7 +109,7 @@ class DBInterface:
             conn.commit()
             if verbose:
                 logger.info(
-                    "__run_sql_batch: SQL executed successfully.")
+                    "__run_sql_batch: SQL executed successfully.\n")
 
         except db.Error as e:
             logger.exception("Failed to initialize database schema: %s", e)

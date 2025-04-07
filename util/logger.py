@@ -7,10 +7,10 @@ from datetime import date
 
 class CLogger:
     """
-    A robust wrapper around the Python logging module that:
-    - Logs to both console and file
-    - Automatically tags logs with caller file
-    - Supports configurable log levels
+        A robust wrapper around the Python logging module that:
+        - Logs to both console and file
+        - Automatically tags logs with caller file
+        - Supports configurable log levels
     """
 
     LOG_DIRECTORY = "logs"

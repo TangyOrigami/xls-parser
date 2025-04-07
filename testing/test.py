@@ -63,9 +63,3 @@ for i in range(len(newUsers)):
           "\nOT:\t", otWeekly, "\nWknd:\t", weekend,
           "\nLog:\n", gp.get_hrs_wrked())
     print()
-
-'''
-    TODO:
-
-        ?. Design schema for saving data and creating relations, RDBMS.
-'''

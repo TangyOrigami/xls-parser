@@ -1,10 +1,17 @@
 import xlrd
+import os
+from dotenv import load_dotenv
 from datetime import datetime
 from util.user import User
 from util.logger import CLogger
 from util.parser import Parser as p
 
+load_dotenv()
+
 logger = CLogger().get_logger()
+
+DEBUG = os.environ.get("DEBUG")
+logger.info("DEBUG: " + DEBUG)
 
 
 class Controller:
@@ -74,7 +81,8 @@ class Controller:
                              start_date=date, report=datesNhrs,
                              comments=comments)
 
-            curr_user._print_user_info()
+            if DEBUG:
+                curr_user._print_user_info()
 
             users.append(curr_user)
 

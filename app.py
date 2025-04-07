@@ -1,12 +1,40 @@
 import sys
+import os
+from dotenv import load_dotenv
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow
 )
-
+from PyQt6.QtCore import QCommandLineOption, QCommandLineParser
 from PyQt6.QtGui import QAction
 from ui.tabs import TabMenu
 from util.db import DBInterface
+from util.logger import CLogger
+
+load_dotenv()
+logger = CLogger().get_logger()
+DEBUG = os.environ.get("DEBUG")
+
+
+def args_parser(app):
+    '''
+        Helper function to parse args
+    '''
+    parser = QCommandLineParser()
+    parser.addHelpOption()
+    parser.addVersionOption()
+
+    debug_option = QCommandLineOption(
+        ["d", "debug"],
+        "Set logging to debug."
+    )
+    parser.addOption(debug_option)
+
+    parser.process(app)
+
+    DEBUG = parser.isSet(debug_option)
+
+    logger.info("DEBUG: " + DEBUG)
 
 
 class MainWindow(QMainWindow):
@@ -62,11 +90,16 @@ class MainWindow(QMainWindow):
     def app_setup(self):
         db = DBInterface("app.db")
 
-        db.initialize_db(verbose=True)
+        db.initialize_db(verbose=DEBUG)
 
 
 if __name__ == '__main__':
-    app = QApplication([])
+    args = sys.argv
+    app = QApplication(args)
+    app.setApplicationName("Timesheet Analyzer")
+    app.setApplicationVersion("0.0.1")
+    args_parser(app)
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
