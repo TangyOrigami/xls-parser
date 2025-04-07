@@ -21,7 +21,7 @@
 
 
 |Sybmol|Meaning|
-----------------
+|------|-------|
 |?|Important|
 |!|Urgent|
 |,|Backburner|
