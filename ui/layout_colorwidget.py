@@ -3,6 +3,10 @@ from PyQt6.QtWidgets import QWidget
 
 
 class Color(QWidget):
+    '''
+        idk what this was for i'm ngl
+    '''
+
     def __init__(self, color):
         super().__init__()
         self.setAutoFillBackground(True)

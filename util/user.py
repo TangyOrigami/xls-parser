@@ -11,10 +11,14 @@ class User:
         of the users' logged hours.
     '''
 
-    def __init__(self, name, group, report, start_date, comments):
+    def __init__(self, name, group, report, start_date, comments, log_level):
         '''
             User Interface
         '''
+        # LOGGING
+        self.log_level = log_level
+
+        # USER DETAILS
         self.name = str(name)
         self.group = str(group)
         self.report = report

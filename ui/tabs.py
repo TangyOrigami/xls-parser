@@ -5,13 +5,19 @@ from ui.dashboard import Dashboard
 
 
 class TabMenu(QTabWidget):
-    def __init__(self):
+    '''
+        PyQt6 Widget that scaffolds the structure of the app
+        as a tab menu on the left handside of the window.
+    '''
+
+    def __init__(self, log_level):
         super().__init__()
+        self.log_level = log_level
 
         self.setTabPosition(QTabWidget.TabPosition.West)
 
-        self.file_upload_widget = FileUploadWidget()
-        self.dashboard_widget = Dashboard()
+        self.file_upload_widget = FileUploadWidget(log_level)
+        self.dashboard_widget = Dashboard(log_level)
 
         # Table
         table_widget = self.file_upload_widget

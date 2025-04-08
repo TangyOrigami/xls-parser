@@ -7,8 +7,14 @@ from PyQt6.QtCore import Qt
 
 
 class Dashboard(QWidget):
-    def __init__(self):
+    '''
+        PyQt6 Widget that will display a breakdown of a specific users'
+        hours for the pay period.
+    '''
+
+    def __init__(self, log_level):
         super().__init__()
+        self.log_level = log_level
 
         # Title Label
         self.title_label = QLabel("Dashboard", self)

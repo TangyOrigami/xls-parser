@@ -1,8 +1,8 @@
 # Timesheet Analyzer
 
 ## TODO:
-1. [!] Finish setting up the '-d' flag to run the application in debug mode.
-    - [!] Flag should activate the loggers that are spread all throught the code base. 
+1. [.] Finish setting up the '-d' flag to run the application in debug mode.
+    - [.] Flag should activate the loggers that are spread all throught the code base. 
     - [!] Add more loggers throught the code base.
 
 2. [?] Finish db.py

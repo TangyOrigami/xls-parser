@@ -11,14 +11,13 @@ from ui.tabs import TabMenu
 from util.db import DBInterface
 from util.logger import CLogger
 
-load_dotenv()
 logger = CLogger().get_logger()
-DEBUG = os.environ.get("DEBUG")
 
 
 def args_parser(app):
     '''
-        Helper function to parse args
+        Helper function to parse CLI args.
+        Default environment variables will be set in the .env file.
     '''
     parser = QCommandLineParser()
     parser.addHelpOption()
@@ -32,18 +31,27 @@ def args_parser(app):
 
     parser.process(app)
 
-    DEBUG = parser.isSet(debug_option)
+    parser.isSet(debug_option)
 
-    logger.info("DEBUG: " + DEBUG)
+    if parser.isSet(debug_option):
+        BUILD = "DEBUG"
+        logger.info("BUILD: DEBUG")
+    else:
+        load_dotenv()
+        BUILD = os.environ.get("BUILD")
+        logger.info("BUILD: " + BUILD)
+
+    return BUILD
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, log_level):
         super().__init__()
+        self.log_level = log_level
 
         self.setWindowTitle("Time Sheet App")
 
-        self.tab_menu = TabMenu()
+        self.tab_menu = TabMenu(BUILD)
 
         # Menu
         open_button = QAction("Open", self)
@@ -77,7 +85,7 @@ class MainWindow(QMainWindow):
 
         file_menu.addAction(close_button)
 
-        self.app_setup()
+        self.app_setup(self.log_level)
 
         self.setCentralWidget(self.tab_menu)
 
@@ -87,10 +95,10 @@ class MainWindow(QMainWindow):
     def save_as_button_action(self, s):
         print("save as", s)
 
-    def app_setup(self):
-        db = DBInterface("app.db")
+    def app_setup(self, log_level):
+        db = DBInterface("app.db", log_level)
 
-        db.initialize_db(verbose=DEBUG)
+        db.initialize_db()
 
 
 if __name__ == '__main__':
@@ -98,8 +106,8 @@ if __name__ == '__main__':
     app = QApplication(args)
     app.setApplicationName("Timesheet Analyzer")
     app.setApplicationVersion("0.0.1")
-    args_parser(app)
+    BUILD = args_parser(app)
 
-    window = MainWindow()
+    window = MainWindow(BUILD)
     window.show()
     sys.exit(app.exec())

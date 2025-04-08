@@ -6,10 +6,15 @@ logger = CLogger().get_logger()
 
 
 class DBInterface:
-    def __init__(self, db_name):
-        self.db_name = db_name
+    '''
+        Class to handle DB interactions.
+    '''
 
-    def initialize_db(self, verbose: Optional[bool] = False) -> None:
+    def __init__(self, db_name, log_level):
+        self.db_name = db_name
+        self.log_level = log_level
+
+    def initialize_db(self) -> None:
         SCHEMA_VERSION = "1.0"
 
         sql = [
@@ -68,7 +73,7 @@ class DBInterface:
             '''
         ]
 
-        self.__run_sql_batch(sql, verbose)
+        self.__run_sql_batch(sql, self.log_level)
 
     def save_employee(self, employee_name: str,
                       employee_group: Optional[str] = None):
@@ -84,11 +89,11 @@ class DBInterface:
         ]
 
         self.__run_sql(sql=sql, args=(
-            employee_name, employee_group), verbose=True)
+            employee_name, employee_group), log_level=self.log_level)
 
     def __run_sql_batch(self,
                         sql_statements: List[str],
-                        verbose: bool = False
+                        log_level: str = "PROD"
                         ) -> None:
         """
             Private method to execute SQL statements without parameters.
@@ -101,13 +106,13 @@ class DBInterface:
                 cur = conn.cursor()
 
                 for statement in sql_statements:
-                    if verbose:
+                    if log_level == "DEBUG":
                         logger.info("Executing SQL: %s",
                                     statement.strip().splitlines()[0])
                     cur.execute(statement)
 
             conn.commit()
-            if verbose:
+            if log_level == "DEBUG":
                 logger.info(
                     "__run_sql_batch: SQL executed successfully.\n")
 
@@ -118,7 +123,7 @@ class DBInterface:
     def __run_sql(self,
                   sql: str,
                   args: tuple = (),
-                  verbose: bool = False
+                  log_level: str = "PROD"
                   ) -> None:
         """
             Private method to execute SQL statements with parameters.
@@ -127,12 +132,12 @@ class DBInterface:
         try:
             with db.connect(self.db_name) as conn:
                 conn.execute("PRAGMA foreign_keys = ON;")
-                if verbose:
+                if log_level == "DEBUG":
                     logger.info("Executing SQL: %s | Args: %s",
                                 sql.strip().splitlines()[0], args)
                 conn.execute(sql, args)
                 conn.commit()
-                if verbose:
+                if log_level == "DEBUG":
                     logger.info(
                         "__run_sql: SQL executed successfully.")
 

@@ -8,9 +8,15 @@ from util.controller import Controller
 
 
 class FileUploadWidget(QWidget):
-    def __init__(self):
+    '''
+        PyQt6 Widget that handles the file upload and displays
+        the data into a table.
+    '''
+
+    def __init__(self, log_level):
         super().__init__()
         self.setAcceptDrops(True)  # Enable drag and drop
+        self.log_level = log_level
 
         # Title Label
         self.title_label = QLabel("Table", self)
@@ -59,7 +65,7 @@ class FileUploadWidget(QWidget):
         self.status_label.setText("Processing file...")
 
         try:
-            c = Controller()
+            c = Controller(log_level=self.log_level)
             users = c.extract_data(file_path=file_path)
             self.populate_table(users)
             self.status_label.setText("File successfully processed!")
