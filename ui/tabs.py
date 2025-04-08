@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QTabWidget, QVBoxLayout, QLabel, QWidget
 
-from ui.fileupload import FileUploadWidget
+from ui.table import TableWidget
 from ui.dashboard import Dashboard
 
 
@@ -16,11 +16,11 @@ class TabMenu(QTabWidget):
 
         self.setTabPosition(QTabWidget.TabPosition.West)
 
-        self.file_upload_widget = FileUploadWidget(log_level)
+        self.table_widget = TableWidget(log_level)
         self.dashboard_widget = Dashboard(log_level)
 
         # Table
-        table_widget = self.file_upload_widget
+        table_widget = self.table_widget
 
         # Dashboard
         dashboard_widget = self.dashboard_widget

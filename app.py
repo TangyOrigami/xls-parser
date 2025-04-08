@@ -35,7 +35,7 @@ def args_parser(app):
 
     if parser.isSet(debug_option):
         BUILD = "DEBUG"
-        logger.info("BUILD: DEBUG")
+        logger.info("BUILD: " + BUILD)
     else:
         load_dotenv()
         BUILD = os.environ.get("BUILD")
@@ -57,7 +57,7 @@ class MainWindow(QMainWindow):
         open_button = QAction("Open", self)
         open_button.setStatusTip("Open a file")
         open_button.triggered.connect(
-            self.tab_menu.file_upload_widget.open_file_dialog)
+            self.tab_menu.table_widget.open_file_dialog)
 
         save_button = QAction("Save", self)
         save_button.setStatusTip("Save current view")
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     args = sys.argv
     app = QApplication(args)
     app.setApplicationName("Timesheet Analyzer")
-    app.setApplicationVersion("0.0.1")
+    app.setApplicationVersion("0.0.2")
     BUILD = args_parser(app)
 
     window = MainWindow(BUILD)

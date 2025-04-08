@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 from util.controller import Controller
 
 
-class FileUploadWidget(QWidget):
+class TableWidget(QWidget):
     '''
         PyQt6 Widget that handles the file upload and displays
         the data into a table.

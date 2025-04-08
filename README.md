@@ -3,10 +3,11 @@
 ## TODO:
 1. [.] Finish setting up the '-d' flag to run the application in debug mode.
     - [.] Flag should activate the loggers that are spread all throught the code base. 
-    - [!] Add more loggers throught the code base.
+    - [,] Add more loggers throught the code base. This will have to happen as the app is developed.
 
 2. [?] Finish db.py
     - [!] Save user.
+        - Might need some refactoring, not sure how.
     - [!] Needs audit to see what else this needs work on.
 
 3. [?] Finish Table widget
@@ -21,7 +22,7 @@
 
 
 |Sybmol|Meaning|
-|:------:|:-------:|
+|:----:|:-----:|
 |?|Important|
 |!|Urgent|
 |,|Backburner|
