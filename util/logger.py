@@ -14,7 +14,7 @@ class CLogger:
     """
 
     LOG_DIRECTORY = "logs"
-    LOG_FILE_NAME = f"application_{str(date.today()).replace('-', '_')}.log"
+    LOG_FILE_NAME = f"log_for_{str(date.today()).replace('-', '_')}.log"
 
     def __init__(self, level: Optional[str] = "INFO"):
         # Ensure log directory exists

@@ -6,8 +6,11 @@
     - [,] Add more loggers throught the code base. This will have to happen as the app is developed.
 
 2. [?] Finish db.py
-    - [!] Save user.
+    - [.] Save user.
         - Might need some refactoring, not sure how.
+    - [!] Save Pay Period.
+    - [!] Save Work Entry.
+    - [!] Save Pay Period Comment.
     - [!] Needs audit to see what else this needs work on.
 
 3. [?] Finish Table widget
