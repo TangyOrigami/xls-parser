@@ -19,8 +19,12 @@ class User:
         self.log_level = log_level
 
         # USER DETAILS
-        self.name = str(name)
-        self.group = str(group)
+        self.first_name = name["First Name"]
+        self.middle_name = name["Middle Name"]
+        self.last_name = name["Last Name"]
+        self.name = self.get_full_name(name)
+
+        self.group = group
         self.report = report
         self.comments = comments
         self.start_date = start_date
@@ -167,19 +171,42 @@ class User:
 
         return dates
 
+    def get_full_name(self, name: dict):
+
+        full_name = ''
+
+        for i in name:
+            if i == "Last Name":
+                full_name = full_name + ' '.join(name[i]) + " "
+                if self.log_level == "DEBUG":
+                    logger.info(' '.join(name[i]))
+            elif i == "Middle Name":
+                if name[i] == "":
+                    pass
+                else:
+                    full_name = full_name + name[i] + " "
+                    if self.log_level == "DEBUG":
+                        logger.info(name[i])
+            else:
+                full_name = full_name + name[i] + " "
+                if self.log_level == "DEBUG":
+                    logger.info(name[i])
+
+        return full_name.strip()
+
     def _print_user_info(self):
 
-        name = f"\nName: \t{self.name}\n"
+        name = f"\nName: \t{self.name.strip()}\n"
         group = f"Group: \t{self.group}\n"
         date = f"Date: \t{self.start_date}\n"
         comments = f"Cmnts: \t{self.comments}\n"
         pay_period = f"PP: \t{str(self.__weekday_filter())}\n"
         total = f"Total: \t{sum(self.get_hrs_wrked().values())}\n"
-        days = f"Days: \t{self.get_hrs_wrked().keys()}\n"
-        hours = f"Hours: \t{self.get_hrs_wrked().values()}\n"
-        week_day = f"WD: \t{self.get_weekday_hrs()}\n"
-        week_end = f"WE: \t{self.get_weekend_hrs()}\n"
-        over_time = f"OT: \t{self.get_ot_logged()}\n"
+        days = f"Days: \t{list(self.get_hrs_wrked().keys())}\n"
+        hours = f"Hours: \t{list(self.get_hrs_wrked().values())}\n"
+        week_day = f"WD: \t{list(self.get_weekday_hrs())}\n"
+        week_end = f"WE: \t{list(self.get_weekend_hrs())}\n"
+        over_time = f"OT: \t{list(self.get_ot_logged())}\n"
 
         logger.info(name + group + date + comments + pay_period + total +
                     days + hours + week_day + week_end + over_time)

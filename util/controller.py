@@ -73,12 +73,22 @@ class Controller:
             for i in range(len(dates)):
                 datesNhrs.append([dates[i], hrs[i]])
 
-            curr_user = User(name=name[0], group=group[0],
-                             start_date=date, report=datesNhrs,
-                             comments=comments, log_level=self.log_level)
-
             if self.log_level == "DEBUG":
-                curr_user._print_user_info()
+                curr_user = User(name=name, group=group[0],
+                                 start_date=date, report=datesNhrs,
+                                 comments=comments, log_level=self.log_level)
+
+                days = f"\nDays: \t{list(curr_user.get_hrs_wrked().keys())}\n"
+                hours = f"Hours: \t{list(curr_user.get_hrs_wrked().values())}\n"
+                week_day = f"WD: \t{list(curr_user.get_weekday_hrs())}\n"
+                week_end = f"WE: \t{list(curr_user.get_weekend_hrs())}\n"
+                over_time = f"OT: \t{list(curr_user.get_ot_logged())}\n"
+
+                logger.info(days + hours + week_day + week_end + over_time)
+            else:
+                curr_user = User(name=name, group=group[0],
+                                 start_date=date, report=datesNhrs,
+                                 comments=comments, log_level=self.log_level)
 
             users.append(curr_user)
 
@@ -103,6 +113,28 @@ class Controller:
                            target="User Name:",
                            xbuff=2,
                            ybuff=None)
+
+        if self.log_level == "DEBUG":
+
+            split_name = name[0].split(' ')
+            sanitized_name = [i.replace(',', '') for i in split_name]
+            name = {"First Name": "", "Middle Name": "", "Last Name": []}
+
+            try:
+                for i in reversed(sanitized_name):
+                    if len(i) == 1:
+                        name.update({"Middle Name": i})
+                    elif name["First Name"] == "":
+                        name.update({"First Name": i})
+                    else:
+                        name["Last Name"].append(i)
+                        name["Last Name"].reverse()
+
+            except Exception as e:
+                logger.error(e)
+
+            return name
+
         return name
 
     def __get_group(self, sheet) -> [str, [int, int]]:

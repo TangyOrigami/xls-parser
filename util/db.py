@@ -81,12 +81,10 @@ class DBInterface:
             Adds a new employee if not already present.
         """
 
-        sql = [
-            """
+        sql = """
         INSERT OR IGNORE INTO Employee (EmployeeName, EmployeeGroup)
         VALUES (?, ?)
         """
-        ]
 
         self.__run_sql(sql=sql, args=(
             employee_name, employee_group), log_level=self.log_level)

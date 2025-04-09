@@ -4,7 +4,10 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem
 )
 
+from util.logger import CLogger
 from util.controller import Controller
+
+logger = CLogger().get_logger()
 
 
 class TableWidget(QWidget):
@@ -70,40 +73,75 @@ class TableWidget(QWidget):
             self.populate_table(users)
             self.status_label.setText("File successfully processed!")
         except Exception as e:
+            logger.error(e)
             self.status_label.setText(f"Error processing file: {e}")
 
     def populate_table(self, users):
+
         if not users:
             self.status_label.setText("No data found in file.")
             return
 
-        pay_period = users[0].pay_period_dates()
-        pay_period = [str(i) for i in pay_period]
-        headers = ["employee_name", "employee_group"] + pay_period
+        try:
 
-        self.table_widget.setColumnCount(len(headers))
-        self.table_widget.setRowCount(len(users))
-        self.table_widget.setHorizontalHeaderLabels(headers)
+            pay_period = users[0].pay_period_dates()
+            pay_period = [str(i) for i in pay_period]
+            headers = ["employee_name", "employee_group"] + pay_period
 
-        for row_id in range(0, len(users)):
-            user = users[row_id]
-            user_info = {"employee_name": user.name,
-                         "employee_group": user.group}
-            user_data = {**user_info, **user.get_hrs_wrked()}
+            self.table_widget.setColumnCount(len(headers))
+            self.table_widget.setHorizontalHeaderLabels(headers)
+            self.table_widget.setRowCount(len(users))
 
-            for col_id in range(len(headers)):
-                if headers[col_id] in user_data.keys():
-                    value = str(user_data[headers[col_id]])
-
-                    self.__add_cell_value(
-                        row_id=row_id, col_id=col_id, value=value)
+            self.__populate_table_iterator(users, headers)
+        except Exception as e:
+            logger.error(e)
 
     def count_clicks(self):
         self.count += 1
         self.button.setText(f"Click Count: {self.count}")
 
     def __add_cell_value(self, row_id, col_id, value):
-        item = QTableWidgetItem(
-            str(value))
-        self.table_widget.setItem(
-            row_id, col_id, item)
+        try:
+            item = QTableWidgetItem(
+                str(value))
+            self.table_widget.setItem(
+                row_id, col_id, item)
+        except Exception as e:
+            logger.error(e)
+
+    def __populate_table_iterator(self, users, headers):
+        try:
+            headers = [str(i) for i in headers]
+
+            for row_id in range(0, len(users)):
+                user = users[row_id]
+                user_info = {"employee_name": user.name,
+                             "employee_group": user.group}
+                hours = self.__format_hrs(user.get_hrs_wrked())
+                user_data = {**user_info, **hours}
+
+                for col_id in range(len(headers)):
+                    if headers[col_id] in user_data.keys():
+                        value = str(user_data[headers[col_id]])
+
+                        self.__add_cell_value(
+                            row_id=row_id, col_id=col_id, value=value)
+
+        except Exception as e:
+            logger.error(e)
+
+    def __format_hrs(self, user_hrs: dict):
+        formatted = list()
+
+        try:
+            unformatted, hours = list(user_hrs.keys()), list(user_hrs.values())
+
+            for i in unformatted:
+                formatted.append(str(i))
+
+            formatted = dict(zip(formatted, hours))
+
+        except Exception as e:
+            logger.error(e)
+
+        return formatted
