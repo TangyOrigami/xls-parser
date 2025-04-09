@@ -2,6 +2,7 @@ import xlrd
 from datetime import datetime
 from util.user import User
 from util.logger import CLogger
+from util.db import DBInterface
 from util.parser import Parser as p
 
 logger = CLogger().get_logger()
@@ -73,22 +74,18 @@ class Controller:
             for i in range(len(dates)):
                 datesNhrs.append([dates[i], hrs[i]])
 
+            curr_user = User(name=name, group=group[0],
+                             start_date=date, report=datesNhrs,
+                             comments=comments, log_level=self.log_level)
+
+            # DB
+            db = DBInterface("app.db", self.log_level)
+
+            db.save_employee(curr_user.first_name, curr_user.middle_name,
+                             curr_user.last_name, curr_user.group)
+
             if self.log_level == "DEBUG":
-                curr_user = User(name=name, group=group[0],
-                                 start_date=date, report=datesNhrs,
-                                 comments=comments, log_level=self.log_level)
-
-                days = f"\nDays: \t{list(curr_user.get_hrs_wrked().keys())}\n"
-                hours = f"Hours: \t{list(curr_user.get_hrs_wrked().values())}\n"
-                week_day = f"WD: \t{list(curr_user.get_weekday_hrs())}\n"
-                week_end = f"WE: \t{list(curr_user.get_weekend_hrs())}\n"
-                over_time = f"OT: \t{list(curr_user.get_ot_logged())}\n"
-
-                logger.info(days + hours + week_day + week_end + over_time)
-            else:
-                curr_user = User(name=name, group=group[0],
-                                 start_date=date, report=datesNhrs,
-                                 comments=comments, log_level=self.log_level)
+                curr_user._print_user_info()
 
             users.append(curr_user)
 

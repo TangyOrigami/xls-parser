@@ -21,7 +21,9 @@ class DBInterface:
             """
             CREATE TABLE IF NOT EXISTS Employee(
                 EmployeeID INTEGER PRIMARY KEY AUTOINCREMENT,
-                EmployeeName TEXT NOT NULL,
+                FirstName TEXT NOT NULL,
+                MiddleName TEXT,
+                LastName TEXT NOT NULL,
                 EmployeeGroup TEXT
             )
             """,
@@ -75,19 +77,21 @@ class DBInterface:
 
         self.__run_sql_batch(sql, self.log_level)
 
-    def save_employee(self, employee_name: str,
+    def save_employee(self, first_name: str, middle_name: str, last_name: str,
                       employee_group: Optional[str] = None):
         """
             Adds a new employee if not already present.
         """
 
         sql = """
-        INSERT OR IGNORE INTO Employee (EmployeeName, EmployeeGroup)
-        VALUES (?, ?)
+        INSERT OR IGNORE INTO Employee (FirstName, MiddleName, LastName, EmployeeGroup)
+        VALUES (?, ?, ?, ?)
         """
 
-        self.__run_sql(sql=sql, args=(
-            employee_name, employee_group), log_level=self.log_level)
+        self.__run_sql(sql=sql,
+                       args=(first_name, middle_name,
+                             last_name, employee_group),
+                       log_level=self.log_level)
 
     def __run_sql_batch(self,
                         sql_statements: List[str],
