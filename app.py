@@ -49,7 +49,9 @@ def args_parser(app) -> [str, str]:
 class MainWindow(QMainWindow):
     def __init__(self, BUILD, DB):
         super().__init__()
-        logger.info("Main Window: %s", BUILD)
+
+        if BUILD == "DEBUG":
+            logger.info("Main Window: %s", BUILD)
 
         self.setWindowTitle("Time Sheet App")
 

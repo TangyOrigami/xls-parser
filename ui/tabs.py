@@ -15,7 +15,8 @@ class TabMenu(QTabWidget):
 
     def __init__(self, BUILD, DB):
         super().__init__()
-        logger.info("Tab Menu: %s", BUILD)
+        if BUILD == "DEBUG":
+            logger.info("Tab Menu: %s", BUILD)
 
         self.setTabPosition(QTabWidget.TabPosition.West)
 

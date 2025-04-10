@@ -19,7 +19,9 @@ class Dashboard(QWidget):
     def __init__(self, BUILD, DB):
         super().__init__()
         self.DB = DB
-        logger.info("Dashboard: %s", BUILD)
+
+        if BUILD == "DEBUG":
+            logger.info("Dashboard: %s", BUILD)
 
         # Title Label
         self.title_label = QLabel("Dashboard", self)

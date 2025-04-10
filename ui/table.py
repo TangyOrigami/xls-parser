@@ -19,7 +19,8 @@ class TableWidget(QWidget):
     def __init__(self, BUILD, DB):
         super().__init__()
         self.setAcceptDrops(True)  # Enable drag and drop
-        logger.info("Table Widget: %s", BUILD)
+        if BUILD == "DEBUG":
+            logger.info("Table Widget: %s", BUILD)
         self.DB = DB
         self.BUILD = BUILD
 
