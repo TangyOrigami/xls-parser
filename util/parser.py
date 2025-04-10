@@ -10,10 +10,7 @@ class Parser:
         time clock.
     '''
 
-    def __init__(self, log_level):
-        self.log_level = log_level
-
-    def hrsFormatter(arr):
+    def hrs_formatter(arr, BUILD):
         if arr == "":
             return 0
 
@@ -30,10 +27,11 @@ class Parser:
 
             return stack[0] + stack[1]
 
-    def xlsParser(sheet,
-                  mincolx, minrowy,
-                  maxcolx, maxrowy,
-                  target, xbuff, ybuff) -> []:
+    def xls_parser(sheet,
+                   mincolx, minrowy,
+                   maxcolx, maxrowy,
+                   target, xbuff, ybuff,
+                   BUILD) -> []:
         answer = []
 
         for row in range(minrowy, maxrowy):

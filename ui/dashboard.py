@@ -5,6 +5,10 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import Qt
 
+from util.logger import CLogger
+
+logger = CLogger().get_logger()
+
 
 class Dashboard(QWidget):
     '''
@@ -12,9 +16,10 @@ class Dashboard(QWidget):
         hours for the pay period.
     '''
 
-    def __init__(self, log_level):
+    def __init__(self, BUILD, DB):
         super().__init__()
-        self.log_level = log_level
+        self.DB = DB
+        logger.info("Dashboard: %s", BUILD)
 
         # Title Label
         self.title_label = QLabel("Dashboard", self)

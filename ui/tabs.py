@@ -2,6 +2,9 @@ from PyQt6.QtWidgets import QTabWidget, QVBoxLayout, QLabel, QWidget
 
 from ui.table import TableWidget
 from ui.dashboard import Dashboard
+from util.logger import CLogger
+
+logger = CLogger().get_logger()
 
 
 class TabMenu(QTabWidget):
@@ -10,14 +13,14 @@ class TabMenu(QTabWidget):
         as a tab menu on the left handside of the window.
     '''
 
-    def __init__(self, log_level):
+    def __init__(self, BUILD, DB):
         super().__init__()
-        self.log_level = log_level
+        logger.info("Tab Menu: %s", BUILD)
 
         self.setTabPosition(QTabWidget.TabPosition.West)
 
-        self.table_widget = TableWidget(log_level)
-        self.dashboard_widget = Dashboard(log_level)
+        self.table_widget = TableWidget(BUILD, DB)
+        self.dashboard_widget = Dashboard(BUILD, DB)
 
         # Table
         table_widget = self.table_widget

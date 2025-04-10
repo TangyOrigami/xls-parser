@@ -11,16 +11,14 @@ class User:
         of the users' logged hours.
     '''
 
-    def __init__(self, name, group, report, start_date, comments, log_level):
+    def __init__(self, name, group, report, start_date, comments, BUILD):
         '''
             User Interface
         '''
-        # LOGGING
-        self.log_level = log_level
 
         # USER DETAILS
         self.name, self.first_name, self.middle_name, self.last_name = self.get_full_name(
-            name)
+            name, BUILD)
 
         self.group = group
         self.report = report
@@ -169,7 +167,7 @@ class User:
 
         return dates
 
-    def get_full_name(self, name: dict):
+    def get_full_name(self, name, BUILD):
         full_name = ''
         first_name = ''
         middle_name = ''
@@ -177,27 +175,32 @@ class User:
 
         for i in name:
             if i == "Last Name":
+                if BUILD == "DEBUG":
+                    logger.warn("IN %s MODE", BUILD)
+                    logger.info(' '.join(name[i]))
+
                 last_name = ' '.join(name[i]).strip()
                 full_name = full_name + last_name + " "
-
-                if self.log_level == "DEBUG":
-                    logger.info(' '.join(name[i]))
 
             elif i == "Middle Name":
                 if name[i] == "":
                     pass
 
                 else:
+                    if BUILD == "DEBUG":
+                        logger.warn("IN %s MODE", BUILD)
+                        logger.info(name[i])
+
                     middle_name = name[i].strip()
                     full_name = full_name + middle_name + " "
 
-                    if self.log_level == "DEBUG":
-                        logger.info(name[i])
             else:
+                if BUILD == "DEBUG":
+                    logger.warn("IN %s MODE", BUILD)
+                    logger.info(name[i])
+
                 first_name = name[i].strip()
                 full_name = full_name + first_name + " "
-                if self.log_level == "DEBUG":
-                    logger.info(name[i])
 
         return full_name.strip(), first_name, middle_name, last_name
 

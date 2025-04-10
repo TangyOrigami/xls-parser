@@ -11,10 +11,11 @@ from ui.tabs import TabMenu
 from util.db import DBInterface
 from util.logger import CLogger
 
+load_dotenv()
 logger = CLogger().get_logger()
 
 
-def args_parser(app):
+def args_parser(app) -> [str, str]:
     '''
         Helper function to parse CLI args.
         Default environment variables will be set in the .env file.
@@ -35,23 +36,24 @@ def args_parser(app):
 
     if parser.isSet(debug_option):
         BUILD = "DEBUG"
+        DB = os.environ.get("DB")
         logger.info("BUILD: " + BUILD)
     else:
-        load_dotenv()
         BUILD = os.environ.get("BUILD")
         logger.info("BUILD: " + BUILD)
+        DB = os.environ.get("DB")
 
-    return BUILD
+    return [BUILD, DB]
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, log_level):
+    def __init__(self, BUILD, DB):
         super().__init__()
-        self.log_level = log_level
+        logger.info("Main Window: %s", BUILD)
 
         self.setWindowTitle("Time Sheet App")
 
-        self.tab_menu = TabMenu(BUILD)
+        self.tab_menu = TabMenu(BUILD, DB)
 
         # Menu
         open_button = QAction("Open", self)
@@ -85,7 +87,7 @@ class MainWindow(QMainWindow):
 
         file_menu.addAction(close_button)
 
-        self.app_setup(self.log_level)
+        self.app_setup(BUILD, DB)
 
         self.setCentralWidget(self.tab_menu)
 
@@ -95,10 +97,10 @@ class MainWindow(QMainWindow):
     def save_as_button_action(self, s):
         print("save as", s)
 
-    def app_setup(self, log_level):
-        db = DBInterface("app.db", log_level)
+    def app_setup(self, BUILD, DB):
+        db = DBInterface(DB)
 
-        db.initialize_db()
+        db.initialize_db(BUILD)
 
 
 if __name__ == '__main__':
@@ -106,8 +108,8 @@ if __name__ == '__main__':
     app = QApplication(args)
     app.setApplicationName("Timesheet Analyzer")
     app.setApplicationVersion("0.0.2")
-    BUILD = args_parser(app)
+    BUILD, DB = args_parser(app)
 
-    window = MainWindow(BUILD)
+    window = MainWindow(BUILD, DB)
     window.show()
     sys.exit(app.exec())
