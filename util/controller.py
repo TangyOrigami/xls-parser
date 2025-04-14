@@ -2,7 +2,6 @@ import xlrd
 from datetime import datetime
 from util.user import User
 from util.logger import CLogger
-from util.db import DBInterface
 from util.parser import Parser as p
 
 logger = CLogger().get_logger()
@@ -15,7 +14,7 @@ class Controller:
     '''
 
     def __init__(self, BUILD, DB):
-        self.db = DBInterface(DB=DB)
+        self.DB = DB
 
     def extract_data(self, file_path: str, BUILD) -> []:
         '''
@@ -80,18 +79,12 @@ class Controller:
 
             curr_user = User(name=name, group=group[0],
                              start_date=date, report=datesNhrs,
-                             comments=comments, BUILD=BUILD)
-
-            # DB
-            self.db.save_employee(BUILD, curr_user.first_name,
-                                  curr_user.middle_name,
-                                  curr_user.last_name, curr_user.group)
+                             comments=comments, BUILD=BUILD, DB=self.DB)
 
             users.append(curr_user)
 
         if BUILD == "DEBUG":
             logger.warn("IN %s MODE", BUILD)
-            logger.info(self.db.test_read(BUILD))
 
         return users
 

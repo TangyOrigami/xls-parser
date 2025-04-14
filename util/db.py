@@ -34,6 +34,7 @@ class DBInterface:
                 EmployeeID INTEGER NOT NULL,
                 StartDate TEXT NOT NULL,
                 EndDate TEXT NOT NULL,
+                UNIQUE(EmployeeID, StartDate, EndDate),
                 FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID)
             )
             """,
@@ -77,28 +78,56 @@ class DBInterface:
 
         self.__run_sql_batch(sql, BUILD)
 
-    def save_employee(self, BUILD, first_name: str, middle_name: str, last_name: str,
-                      employee_group: Optional[str] = None):
+    def save_employee(self, BUILD, args: tuple = ()):
         """
             Adds a new employee if not already present.
         """
 
         sql = """
-        INSERT OR IGNORE INTO Employee (FirstName, MiddleName, LastName, EmployeeGroup)
-        VALUES (?, ?, ?, ?)
+        INSERT OR IGNORE INTO Employee
+        (FirstName, MiddleName, LastName, EmployeeGroup)
+        VALUES (?, ?, ?, ?);
         """
 
         self.__run_sql(sql=sql,
-                       args=(first_name, middle_name,
-                             last_name, employee_group),
-                       BUILD=BUILD
-                       )
+                       args=args,
+                       BUILD=BUILD)
 
-    def test_read(self, BUILD) -> [tuple, ...]:
+    def _read_user_id(self, BUILD, args: tuple = ()) -> [tuple, ...]:
         sql = """
-                SELECT * FROM Employee;
-            """
-        return self.__run_sql_read(sql, BUILD)
+        SELECT EmployeeID FROM Employee
+        WHERE
+        FirstName=? AND
+        MiddleName=? AND
+        LastName=? AND
+        EmployeeGroup=?;
+        """
+
+        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+        return result
+
+    def save_pay_period(self, BUILD, args: tuple = ()):
+        sql = """
+        INSERT OR IGNORE INTO PayPeriod
+        (EmployeeID, StartDate, EndDate)
+        VALUES (?, ?, ?);
+        """
+
+        self.__run_sql(sql=sql,
+                       args=args,
+                       BUILD=BUILD)
+
+    def save_work_entry(self, BUILD, args: tuple = ()):
+        sql = """
+        INSERT OR IGNORE INTO PayPeriod
+        (EmployeeID, StartDate, EndDate)
+        VALUES (?, ?, ?);
+        """
+
+        self.__run_sql(sql=sql,
+                       args=args,
+                       BUILD=BUILD)
 
     def __run_sql_batch(self,
                         sql_statements: List[str],
@@ -144,13 +173,13 @@ class DBInterface:
             with db.connect(self.DB) as conn:
                 conn.execute("PRAGMA foreign_keys = ON;")
                 if BUILD == "DEBUG":
-                    logger.warn("IN %s MODE", BUILD)
                     logger.info("Executing SQL: %s | Args: %s",
                                 sql.strip().splitlines()[0], args)
+
                 conn.execute(sql, args)
                 conn.commit()
+
                 if BUILD == "DEBUG":
-                    logger.warn("IN %s MODE", BUILD)
                     logger.info(
                         "__run_sql: SQL executed successfully.")
 
@@ -159,8 +188,9 @@ class DBInterface:
             raise
 
     def __run_sql_read(self,
+                       BUILD,
                        sql: str,
-                       BUILD
+                       args: tuple = ()
                        ) -> []:
         """
             Private method to execute SQL reads on DB.
@@ -173,18 +203,22 @@ class DBInterface:
                 logger.warn("IN %s MODE", BUILD)
                 logger.info("Executing SQL: %s", sql)
 
-                cursor = conn.cursor()
+            cursor = conn.cursor()
+
+            if args != ():
+                cursor.execute(sql, args)
+            else:
                 cursor.execute(sql)
 
-                employee_ids = cursor.fetchall()
+            employee_ids = cursor.fetchall()
 
-                conn.commit()
+            conn.commit()
 
-                if BUILD == "DEBUG":
-                    logger.warn("IN %s MODE", BUILD)
-                    logger.info(
-                        "__run_sql: SQL executed successfully.")
-                return employee_ids
+            if BUILD == "DEBUG":
+                logger.info(
+                    "__run_sql: SQL executed successfully.")
+
+            return employee_ids
 
     def __run_sql_fetch(self):
         pass

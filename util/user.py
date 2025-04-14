@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timedelta
+from util.db import DBInterface
 from util.logger import CLogger
 
 logger = CLogger().get_logger()
@@ -11,10 +12,11 @@ class User:
         of the users' logged hours.
     '''
 
-    def __init__(self, name, group, report, start_date, comments, BUILD):
+    def __init__(self, name, group, report, start_date, comments, BUILD, DB):
         '''
             User Interface
         '''
+        self.db = DBInterface(DB)
 
         # USER DETAILS
         self.name, self.first_name, self.middle_name, self.last_name = self.get_full_name(
@@ -25,6 +27,34 @@ class User:
         self.comments = comments
         self.start_date = start_date
         self.end_date = start_date + timedelta(days=14)
+
+        self.args = (self.first_name, self.middle_name,
+                     self.last_name, self.group)
+
+        self.__save_user(BUILD, DB)
+
+        self.id = self.__employee_id(BUILD, DB)
+
+        self.__save_pay_period(BUILD, DB)
+
+    def __save_user(self, BUILD, DB):
+
+        self.db.save_employee(BUILD=BUILD,
+                              args=self.args)
+
+    def __save_pay_period(self, BUILD, DB):
+
+        self.db.save_pay_period(BUILD=BUILD,
+                                args=(self.id,
+                                      str(self.start_date),
+                                      str(self.end_date))
+                                )
+
+    def __employee_id(self, BUILD, DB):
+
+        result = int(self.db._read_user_id(BUILD=BUILD, args=self.args)[0][0])
+
+        return result
 
     def __get_hrs(self) -> [int, ...]:
         '''
