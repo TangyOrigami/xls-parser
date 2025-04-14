@@ -47,6 +47,7 @@ class DBInterface:
                 Hours REAL NOT NULL CHECK(Hours >= 0.0),
                 TimeType TEXT NOT NULL CHECK(TimeType IN
                 ('RT', 'OT', 'SICK', 'VAC')),
+                UNIQUE(PayPeriodID, WorkDate),
                 FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID)
             )
             """,
@@ -107,6 +108,19 @@ class DBInterface:
 
         return result
 
+    def _read_pay_period_id(self, BUILD, args: tuple = ()) -> [tuple, ...]:
+        sql = """
+        SELECT PayPeriodID FROM PayPeriod
+        WHERE
+        EmployeeID=? AND
+        StartDate=? AND
+        EndDate=?;
+        """
+
+        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+        return result
+
     def save_pay_period(self, BUILD, args: tuple = ()):
         sql = """
         INSERT OR IGNORE INTO PayPeriod
@@ -120,9 +134,9 @@ class DBInterface:
 
     def save_work_entry(self, BUILD, args: tuple = ()):
         sql = """
-        INSERT OR IGNORE INTO PayPeriod
-        (EmployeeID, StartDate, EndDate)
-        VALUES (?, ?, ?);
+        INSERT OR IGNORE INTO WorkEntry
+        (PayPeriodID, WorkDate, Hours, TimeType)
+        VALUES (?, ?, ?, ?);
         """
 
         self.__run_sql(sql=sql,

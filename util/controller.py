@@ -22,9 +22,6 @@ class Controller:
             a list of User objects from the file.
         '''
 
-        if BUILD == "DEBUG":
-            logger.warn("IN %s MODE", BUILD)
-
         workbook = xlrd.open_workbook(file_path)
 
         users = []

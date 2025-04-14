@@ -31,18 +31,32 @@ class User:
         self.args = (self.first_name, self.middle_name,
                      self.last_name, self.group)
 
-        self.__save_user(BUILD, DB)
+        self.__save_user(BUILD)
 
-        self.id = self.__employee_id(BUILD, DB)
+        self.id = self.__employee_id(BUILD)
 
-        self.__save_pay_period(BUILD, DB)
+        self.__save_pay_period(BUILD)
 
-    def __save_user(self, BUILD, DB):
+        logger.info(self.__save_work_entry(BUILD))
+
+    def __save_user(self, BUILD):
 
         self.db.save_employee(BUILD=BUILD,
                               args=self.args)
 
-    def __save_pay_period(self, BUILD, DB):
+    def __employee_id(self, BUILD):
+
+        result = int(self.db._read_user_id(BUILD=BUILD, args=self.args)[0][0])
+
+        return result
+
+    def __save_pay_period(self, BUILD):
+        this = (self.id,
+                str(self.start_date),
+                str(self.end_date))
+
+        for i in this:
+            logger.warn(i)
 
         self.db.save_pay_period(BUILD=BUILD,
                                 args=(self.id,
@@ -50,11 +64,9 @@ class User:
                                       str(self.end_date))
                                 )
 
-    def __employee_id(self, BUILD, DB):
-
-        result = int(self.db._read_user_id(BUILD=BUILD, args=self.args)[0][0])
-
-        return result
+    def __save_work_entry(self, BUILD):
+        self.db._read_pay_period_id(BUILD=BUILD, args=(
+            self.id, str(self.start_date), str(self.end_date)))
 
     def __get_hrs(self) -> [int, ...]:
         '''
@@ -175,7 +187,6 @@ class User:
         '''
             Returns Over Time that was logged.
         '''
-        pass
         total = sum(self.get_hrs_wrked().values())
 
         if total < 80.0:
