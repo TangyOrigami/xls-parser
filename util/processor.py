@@ -6,7 +6,7 @@ from util.logger import CLogger
 logger = CLogger().get_logger()
 
 
-class User:
+class Processor:
     '''
         User object that creates an interface
         of the users' logged hours.

@@ -104,7 +104,9 @@ class DBInterface:
         EmployeeGroup=?;
         """
 
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
+                                     BUILD=BUILD)
 
         return result
 
@@ -117,7 +119,9 @@ class DBInterface:
         EndDate=?;
         """
 
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
+                                     BUILD=BUILD)
 
         return result
 
@@ -147,9 +151,9 @@ class DBInterface:
                         sql_statements: List[str],
                         BUILD
                         ) -> None:
-        """
+        '''
             Private method to execute SQL statements without parameters.
-        """
+        '''
 
         try:
 
@@ -190,7 +194,11 @@ class DBInterface:
                     logger.info("Executing SQL: %s | Args: %s",
                                 sql.strip().splitlines()[0], args)
 
-                conn.execute(sql, args)
+                if args == ():
+                    conn.execute(sql)
+                else:
+                    conn.execute(sql, args)
+
                 conn.commit()
 
                 if BUILD == "DEBUG":
@@ -214,15 +222,14 @@ class DBInterface:
             conn.execute("PRAGMA foreign_keys = ON;")
 
             if BUILD == "DEBUG":
-                logger.warn("IN %s MODE", BUILD)
-                logger.info("Executing SQL: %s", sql)
+                logger.info("Executing SQL: %s | %s", sql, args)
 
             cursor = conn.cursor()
 
-            if args != ():
-                cursor.execute(sql, args)
-            else:
+            if args == ():
                 cursor.execute(sql)
+            else:
+                cursor.execute(sql, args)
 
             employee_ids = cursor.fetchall()
 
