@@ -9,7 +9,7 @@ from util.processor import Processor
 from util.logger import CLogger
 from util.parser import Parser as p
 
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 
 class PreProcessor:
@@ -35,7 +35,7 @@ class PreProcessor:
             temp_hrs = []
             dates = []
             hrs = []
-            datesNhrs = []
+            report = []
 
             currentSheet = workbook.sheet_by_index(i)
 
@@ -55,7 +55,7 @@ class PreProcessor:
 
             comments = [comm_date, pi_comm, po_comm, sp_comm]
 
-            dailyHrsCol = self.__get_dailyHrsCol(currentSheet, BUILD)
+            dailyHrsCol = self.__get_daily_hrs_col(currentSheet, BUILD)
 
             temp_hrs.append(p.xls_parser(sheet=currentSheet,
                                          mincolx=dailyHrsCol[1],
@@ -77,16 +77,30 @@ class PreProcessor:
                     f"{currentSheet.cell_value(rowx=currDate[0], colx=currDate[1])}")
 
             for i in range(len(dates)):
-                datesNhrs.append([dates[i], hrs[i]])
+                report.append([dates[i], hrs[i]])
 
-            curr_user = Employee(name=name, group=group[0],
-                                 start_date=date, report=datesNhrs,
-                                 comments=comments, BUILD=BUILD, DB=self.DB)
+            c_user = Employee(name=name, group=group[0],
+                              comments=comments, BUILD=BUILD, DB=self.DB)
 
-            users.append(curr_user)
+            c_pay_period = PayPeriod(
+                employee_id=c_user.employee_id, date=date,
+                BUILD=BUILD, DB=self.DB)
 
-        if BUILD == "DEBUG":
-            logger.warn("IN %s MODE", BUILD)
+            c_work_entries = Processor(
+                pay_period_id=c_pay_period.pay_period_id,
+                report=report, start_date=date,
+                BUILD=BUILD, DB=self.DB
+            )
+
+            if BUILD == "DEBUG":
+                log.info(
+                    "Employee ID: %s | Pay Period ID: %s | Work Entries: %s",
+                    c_user.employee_id,
+                    c_pay_period.pay_period_id,
+                    c_work_entries
+                )
+
+            users.append(c_work_entries)
 
         return users
 
@@ -128,7 +142,7 @@ class PreProcessor:
                     name["Last Name"].reverse()
 
         except Exception as e:
-            logger.error(e)
+            log.error(e)
 
         return name
 
@@ -191,7 +205,7 @@ class PreProcessor:
 
         return sp_comm
 
-    def __get_dailyHrsCol(self, sheet, BUILD) -> [str, ...]:
+    def __get_daily_hrs_col(self, sheet, BUILD) -> [str, ...]:
         dailyHrsCol = p.xls_parser(sheet=sheet,
                                    mincolx=0, minrowy=0,
                                    maxcolx=sheet.ncols,

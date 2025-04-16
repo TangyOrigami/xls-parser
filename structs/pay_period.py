@@ -1,21 +1,23 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from util.db import DBInterface
 from util.logger import CLogger
 
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 
 class PayPeriod:
     def __init__(self,
                  employee_id: int,
-                 start_date: datetime,
-                 end_date: datetime,
+                 date: datetime,
                  BUILD: str,
                  DB: str):
 
         db = DBInterface(DB)
 
-        args = (employee_id, start_date, end_date)
+        self.start_date = date
+        self.end_date = date + timedelta(days=14)
+
+        args = (employee_id, self.start_date, self.end_date)
 
         self.__save_pay_period(BUILD=BUILD, db=db, args=args)
 
@@ -23,8 +25,6 @@ class PayPeriod:
             BUILD=BUILD, db=db, args=args)
 
         self.employee_id = employee_id
-        self.start_date = start_date
-        self.end_date = end_date
 
     def __save_pay_period(self, BUILD: str, db: DBInterface, args: tuple):
         db.save_pay_period(BUILD=BUILD, args=(args))
@@ -33,3 +33,12 @@ class PayPeriod:
         result = db._read_pay_period_id(BUILD=BUILD, args=(args))[0][0]
 
         return result
+
+    def _print_object_info(self):
+
+        start_date = f"\nStart Date: \t{self.start_date}\n"
+        end_date = f"End Date: \t{self.end_date}\n"
+        pay_period_id = f"PPID: \t{self.pay_period_id}\n"
+        employee_id = f"EID: \t{self.employee_id}\n"
+
+        log.info(start_date + end_date + pay_period_id + employee_id)

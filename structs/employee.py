@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta
 from util.db import DBInterface
 from util.logger import CLogger
 
 
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 
 class Employee:
@@ -12,7 +11,7 @@ class Employee:
         of the users' logged hours.
     '''
 
-    def __init__(self, name: str, group: str, start_date: datetime,
+    def __init__(self, name: str, group: str,
                  comments: str, BUILD: str, DB: str):
         '''
             User Interface
@@ -21,6 +20,9 @@ class Employee:
 
         self.first_name, self.middle_name, self.last_name = self.__split_name(
             name=name, BUILD=BUILD)
+
+        self.group = group
+        self.comments = comments
 
         args = (
             self.first_name,
@@ -33,11 +35,6 @@ class Employee:
 
         self.employee_id = self.__get_employee_id(
             BUILD=BUILD, db=db, args=args)
-
-        self.group = group
-        self.comments = comments
-        self.start_date = start_date
-        self.end_date = start_date + timedelta(days=14)
 
     def __save_user(self, BUILD: str, db: DBInterface, args: tuple):
         db.save_employee(BUILD=BUILD, args=(args))
@@ -54,10 +51,6 @@ class Employee:
 
         for i in name:
             if i == "Last Name":
-                if BUILD == "DEBUG":
-                    logger.warn("IN %s MODE", BUILD)
-                    logger.info(' '.join(name[i]))
-
                 last_name = ' '.join(name[i]).strip()
 
             elif i == "Middle Name":
@@ -65,17 +58,21 @@ class Employee:
                     pass
 
                 else:
-                    if BUILD == "DEBUG":
-                        logger.warn("IN %s MODE", BUILD)
-                        logger.info(name[i])
-
                     middle_name = name[i].strip()
 
             else:
-                if BUILD == "DEBUG":
-                    logger.warn("IN %s MODE", BUILD)
-                    logger.info(name[i])
-
                 first_name = name[i].strip()
 
         return first_name, middle_name, last_name
+
+    def _print_object_info(self):
+
+        first_name = f"\nFirst Name: \t{self.first_name}\n"
+        middle_name = f"Middle Name: \t{self.middle_name}\n"
+        last_name = f"Last Name: \t{self.last_name}\n"
+        employee_id = f"EID: \t{self.employee_id}\n"
+        group = f"Group: \t{self.group}\n"
+        comments = f"Cmnts: \t{self.comments}\n"
+
+        log.info(first_name + middle_name + last_name +
+                 employee_id + group + comments)

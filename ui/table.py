@@ -6,8 +6,9 @@ from PyQt6.QtWidgets import (
 
 from util.logger import CLogger
 from util.controller import Controller
+from util.pre_processor import PreProcessor
 
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 
 class TableWidget(QWidget):
@@ -20,7 +21,7 @@ class TableWidget(QWidget):
         super().__init__()
         self.setAcceptDrops(True)  # Enable drag and drop
         if BUILD == "DEBUG":
-            logger.info("Table Widget: %s", BUILD)
+            log.info("Table Widget: %s", BUILD)
         self.DB = DB
         self.BUILD = BUILD
 
@@ -76,10 +77,18 @@ class TableWidget(QWidget):
 
     def process_file(self, file_path, BUILD):
         self.status_label.setText("Processing file...")
-        c = Controller(BUILD, self.DB)
 
-        users = c.extract_data(file_path, BUILD)
-        self.populate_table(users, BUILD)
+        if BUILD == "DEBUG":
+            p = PreProcessor(BUILD, self.DB)
+            users = p.extract_data(file_path, BUILD)
+            for i in users:
+                i._print_object_info()
+
+        if BUILD == "PROD":
+            c = Controller(BUILD, self.DB)
+            users = c.extract_data(file_path, BUILD)
+            self.populate_table(users, BUILD)
+
         self.status_label.setText("File successfully processed!")
 
     def populate_table(self, users, BUILD):
@@ -110,7 +119,7 @@ class TableWidget(QWidget):
             self.table_widget.setItem(
                 row_id, col_id, item)
         except Exception as e:
-            logger.error(e)
+            log.error(e)
 
     def __populate_table_iterator(self, users, headers,
                                   BUILD):
@@ -133,7 +142,7 @@ class TableWidget(QWidget):
                             value, BUILD)
 
         except Exception as e:
-            logger.error(e)
+            log.error(e)
             raise
 
     def __format_hrs(self, user_hrs: dict, BUILD):
@@ -148,6 +157,6 @@ class TableWidget(QWidget):
             formatted = dict(zip(formatted, hours))
 
         except Exception as e:
-            logger.error(e)
+            log.error(e)
 
         return formatted

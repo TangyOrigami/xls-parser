@@ -3,7 +3,7 @@ from datetime import datetime
 from util.logger import CLogger
 from structs.time_type import TimeType
 
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 
 class WorkEntry:
@@ -25,7 +25,9 @@ class WorkEntry:
         self.time_type = time_type
 
     def __save_work_entry(self, BUILD: str, db: str, args: tuple):
-        pass
+        log.error("Not Yet Implemented")
+        raise
 
     def __get_work_entry_id(self, BUILD: str, db: str, args: tuple):
-        pass
+        log.error("Not Yet Implemented")
+        raise
