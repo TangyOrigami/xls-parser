@@ -4,7 +4,7 @@ from ui.table import TableWidget
 from ui.dashboard import Dashboard
 from util.logger import CLogger
 
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 
 class TabMenu(QTabWidget):
@@ -16,7 +16,7 @@ class TabMenu(QTabWidget):
     def __init__(self, BUILD, DB):
         super().__init__()
         if BUILD == "DEBUG":
-            logger.info("Tab Menu: %s", BUILD)
+            log.info("Tab Menu: %s", BUILD)
 
         self.setTabPosition(QTabWidget.TabPosition.West)
 

@@ -1,7 +1,6 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QWidget, QFileDialog, QPushButton,
-    QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem
+    QWidget, QFileDialog, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem
 )
 
 from util.logger import CLogger
@@ -17,7 +16,7 @@ class TableWidget(QWidget):
         the data into a table.
     '''
 
-    def __init__(self, BUILD, DB):
+    def __init__(self, BUILD: str, DB: str):
         super().__init__()
         self.setAcceptDrops(True)  # Enable drag and drop
         if BUILD == "DEBUG":
@@ -26,47 +25,47 @@ class TableWidget(QWidget):
         self.BUILD = BUILD
 
         # Title Label
-        self.title_label = QLabel("Table", self)
+        self.title_label = QLabel("Pay Period", self)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_label.setStyleSheet(
             "font-size: 20px; padding: 10px;")
 
-        # Test Button
-        self.count = 0
-        self.button = QPushButton(f"Click Count: {self.count}", self)
-        self.button.clicked.connect(self.count_clicks)
+        # Table Widget for Pay Period Info
+        self.info_table = QTableWidget()
+        self.info_table.setRowCount(1)
+        self.info_table.setColumnCount(2)
+        self.info_table.setHorizontalHeaderLabels(
+            ["PayPeriodID", "StartDate"])
 
         # Table Widget for Displaying Data
-        self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(0)  # Will be set after parsing
-        self.table_widget.setStyleSheet("border: 1px solid gray;")
-        self.table_widget.setEditTriggers(
+        self.main_table = QTableWidget()
+        self.main_table.setColumnCount(0)  # Will be set after parsing
+        self.main_table.setStyleSheet("border: 1px solid gray;")
+        self.main_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers)
 
         # Status Label
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        middle_layout = QVBoxLayout()
-        middle_layout.addWidget(self.title_label)
-        middle_layout.addWidget(self.button)
+        top_layout = QVBoxLayout()
+        top_layout.addWidget(self.title_label)
+        top_layout.addWidget(self.info_table)
 
         bottom_layout = QVBoxLayout()
-        bottom_layout.addWidget(self.table_widget)
+        bottom_layout.addWidget(self.main_table)
         bottom_layout.addWidget(self.status_label)
 
         # Main Layout
         main_layout = QVBoxLayout(self)
-        main_layout.addLayout(middle_layout)
+        main_layout.addLayout(top_layout)
         main_layout.addLayout(bottom_layout)
 
         self.setLayout(main_layout)
 
     def open_file_dialog(self):
         """
-            I don't like how this function works.
-            Might be because of hwo PyQt6 QFileDialog works.
-            This caused me a lot of headache.
+            We are stuck having this parse the file.
         """
 
         file_path, _ = QFileDialog.getOpenFileName(
@@ -89,7 +88,10 @@ class TableWidget(QWidget):
 
         self.status_label.setText("File successfully processed!")
 
-    def populate_table(self, users, BUILD):
+    def populate_info(self, users, BUILD):
+        assert NotImplemented
+
+    def populate_main(self, users, BUILD):
 
         if not users:
             self.status_label.setText("No data found in file.")
@@ -99,28 +101,24 @@ class TableWidget(QWidget):
         pay_period = [str(i) for i in pay_period]
         headers = ["employee_name", "employee_group"] + pay_period
 
-        self.table_widget.setColumnCount(len(headers))
-        self.table_widget.setHorizontalHeaderLabels(headers)
-        self.table_widget.setRowCount(len(users))
+        self.main_table.setColumnCount(len(headers))
+        self.main_table.setHorizontalHeaderLabels(headers)
+        self.main_table.setRowCount(len(users))
 
-        self.__populate_table_iterator(
+        self.__populate_main_iterator(
             users, headers, BUILD)
-
-    def count_clicks(self):
-        self.count += 1
-        self.button.setText(f"Click Count: {self.count}")
 
     def __add_cell_value(self, row_id, col_id, value, BUILD):
         try:
             item = QTableWidgetItem(
                 str(value))
-            self.table_widget.setItem(
+            self.main_table.setItem(
                 row_id, col_id, item)
         except Exception as e:
             log.error(e)
 
-    def __populate_table_iterator(self, users, headers,
-                                  BUILD):
+    def __populate_main_iterator(self, users, headers,
+                                 BUILD):
         try:
             headers = [str(i) for i in headers]
 
