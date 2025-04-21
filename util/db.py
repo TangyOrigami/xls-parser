@@ -1,5 +1,5 @@
 import sqlite3 as db
-from typing import Optional, List
+from typing import List
 from util.logger import CLogger
 
 logger = CLogger().get_logger()
@@ -54,11 +54,13 @@ class DBInterface:
             CREATE TABLE IF NOT EXISTS PayPeriodComment(
                 CommentID INTEGER PRIMARY KEY AUTOINCREMENT,
                 PayPeriodID INTEGER NOT NULL,
+                EmployeeID INTEGER NOT NULL,
                 WorkDate TEXT NOT NULL,
                 PunchInComment TEXT,
                 PunchOutComment TEXT,
                 SpecialPayComment TEXT,
-                FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID)
+                FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID),
+                FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID)
             )
             """,
 
@@ -69,10 +71,10 @@ class DBInterface:
             )
             """,
 
-            f'''
+            f"""
             INSERT OR REPLACE INTO Meta (Key, Value)
-            VALUES ("SchemaVersion", "{SCHEMA_VERSION}")
-            '''
+            VALUES ('SchemaVersion', '{SCHEMA_VERSION}')
+            """
         ]
 
         self.__run_sql_batch(sql, BUILD)
@@ -92,7 +94,7 @@ class DBInterface:
                        args=args,
                        BUILD=BUILD)
 
-    def _read_user_id(self, BUILD, args: tuple = ()) -> [tuple, ...]:
+    def _read_user_id(self, BUILD, args: tuple = ()) -> [tuple]:
         sql = """
         SELECT EmployeeID FROM Employee
         WHERE
@@ -108,7 +110,7 @@ class DBInterface:
 
         return result
 
-    def _read_pay_period_id(self, BUILD, args: tuple = ()) -> [tuple, ...]:
+    def _read_pay_period_id(self, BUILD, args: tuple = ()) -> [tuple]:
         sql = """
         SELECT PayPeriodID FROM PayPeriod
         WHERE
@@ -123,7 +125,7 @@ class DBInterface:
 
         return result
 
-    def _read_work_entry_id(self, BUILD, args: tuple = ()) -> [tuple, ...]:
+    def _read_work_entry_id(self, BUILD, args: tuple = ()) -> [tuple]:
         sql = """
         SELECT WorkEntryID FROM WorkEntry
         WHERE
@@ -160,36 +162,32 @@ class DBInterface:
                        args=args,
                        BUILD=BUILD)
 
-    def __run_sql_batch(self,
-                        sql_statements: List[str],
-                        BUILD
-                        ) -> None:
-        '''
-            Private method to execute SQL statements without parameters.
-        '''
+    def save_comment(self, BUILD, args: tuple = ()):
+        sql = """
+        INSERT OR IGNORE INTO PayPeriodComment
+        (PayPeriodID, EmployeeID, WorkDate,
+        PunchInComment, PunchOutComment, SpecialPayComment)
+        VALUES (?, ?, ?, ?, ?, ?);
+        """
 
-        try:
+        self.__run_sql(sql=sql,
+                       args=args,
+                       BUILD=BUILD)
 
-            with db.connect(self.DB) as conn:
-                conn.execute("PRAGMA foreign_keys = ON;")
-                cur = conn.cursor()
+    def _read_comment_id(self, BUILD, args: tuple = ()) -> [tuple]:
+        sql = """
+        SELECT CommentID FROM PayPeriodComment
+        WHERE
+        PayPeriodID=? AND
+        EmployeeID=? AND
+        WorkDate=?
+        """
 
-                for statement in sql_statements:
-                    if BUILD == "DEBUG":
-                        logger.warn("IN %s MODE", BUILD)
-                        logger.info("Executing SQL: %s",
-                                    statement.strip().splitlines()[0])
-                    cur.execute(statement)
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
+                                     BUILD=BUILD)
 
-            conn.commit()
-            if BUILD == "DEBUG":
-                logger.warn("IN %s MODE", BUILD)
-                logger.info(
-                    "__run_sql_batch: SQL executed successfully.\n")
-
-        except db.Error as e:
-            logger.exception("Failed to initialize database schema: %s", e)
-            raise
+        return result
 
     def __run_sql(self,
                   BUILD,
@@ -202,6 +200,7 @@ class DBInterface:
 
         try:
             with db.connect(self.DB) as conn:
+                conn.set_trace_callback(True)
                 conn.execute("PRAGMA foreign_keys = ON;")
                 if BUILD == "DEBUG":
                     logger.info("Executing SQL: %s | Args: %s",
@@ -220,7 +219,39 @@ class DBInterface:
 
         except db.Error as e:
             logger.exception("Failed to initialize database schema: %s", e)
-            raise
+            assert e.with_traceback
+
+    def __run_sql_batch(self,
+                        sql_statements: List[str],
+                        BUILD
+                        ) -> None:
+        '''
+            Private method to execute SQL statements without parameters.
+        '''
+
+        try:
+
+            with db.connect(self.DB) as conn:
+                conn.set_trace_callback(True)
+                conn.execute("PRAGMA foreign_keys = ON;")
+                cur = conn.cursor()
+
+                for statement in sql_statements:
+                    if BUILD == "DEBUG":
+                        logger.warn("IN %s MODE", BUILD)
+                        logger.info("Executing SQL: %s",
+                                    statement.strip().splitlines()[0])
+                    cur.execute(statement)
+
+            conn.commit()
+            if BUILD == "DEBUG":
+                logger.warn("IN %s MODE", BUILD)
+                logger.info(
+                    "__run_sql_batch: SQL executed successfully.\n")
+
+        except db.Error as e:
+            logger.exception("Failed to initialize database schema: %s", e)
+            assert e.with_traceback
 
     def __run_sql_read(self,
                        BUILD,
@@ -231,28 +262,33 @@ class DBInterface:
             Private method to execute SQL reads on DB.
         """
 
-        with db.connect(self.DB) as conn:
-            conn.execute("PRAGMA foreign_keys = ON;")
+        try:
+            with db.connect(self.DB) as conn:
+                conn.set_trace_callback(True)
+                conn.execute("PRAGMA foreign_keys = ON;")
 
-            if BUILD == "DEBUG":
-                logger.info("Executing SQL: %s | %s", sql, args)
+                if BUILD == "DEBUG":
+                    logger.info("Executing SQL: %s | %s", sql, args)
 
-            cursor = conn.cursor()
+                cursor = conn.cursor()
 
-            if args == ():
-                cursor.execute(sql)
-            else:
-                cursor.execute(sql, args)
+                if args == ():
+                    cursor.execute(sql)
+                else:
+                    cursor.execute(sql, args)
 
-            employee_ids = cursor.fetchall()
+                employee_ids = cursor.fetchall()
 
-            conn.commit()
+                conn.commit()
 
-            if BUILD == "DEBUG":
-                logger.info(
-                    "__run_sql: SQL executed successfully.")
+                if BUILD == "DEBUG":
+                    logger.info(
+                        "__run_sql: SQL executed successfully.")
 
-            return employee_ids
+                return employee_ids
+        except db.Error as e:
+            logger.exception("Failed to read from db: %s", e)
+            assert e.with_traceback
 
     def __run_sql_fetch(self):
-        pass
+        assert NotImplemented

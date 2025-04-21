@@ -81,8 +81,6 @@ class TableWidget(QWidget):
         if BUILD == "DEBUG":
             p = Processor(BUILD, self.DB)
             users = p.extract_data(file_path, BUILD)
-            for i in users:
-                i._print_object_info()
 
         if BUILD == "PROD":
             c = Controller(BUILD, self.DB)
@@ -143,7 +141,7 @@ class TableWidget(QWidget):
 
         except Exception as e:
             log.error(e)
-            raise
+            assert e.with_traceback()
 
     def __format_hrs(self, user_hrs: dict, BUILD):
         formatted = list()

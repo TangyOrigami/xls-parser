@@ -9,14 +9,13 @@ log = CLogger().get_logger()
 
 class WorkEntryWorker:
     '''
-        User object that creates an interface
-        of the users' logged hours.
+        Worker with an interface to handle Work Entries.
     '''
 
     def __init__(self, pay_period_id: int, report: list,
                  start_date: datetime, BUILD: str, DB: str):
         '''
-            User Interface
+            Worker to handle Work Entries.
         '''
         self.db = DBInterface(DB)
 

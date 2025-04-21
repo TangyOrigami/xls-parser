@@ -3,9 +3,11 @@ from datetime import datetime
 
 from structs.employee import Employee
 from structs.pay_period import PayPeriod
+from structs.comments import Comments
 
 from util.work_entry_worker import WorkEntryWorker
 from util.logger import CLogger
+from util.comment_worker import CommentWorker
 from util.parser import Parser as p
 
 log = CLogger().get_logger()
@@ -52,8 +54,6 @@ class Processor:
 
             sp_comm = self.__get_sp_comm(currentSheet, BUILD)
 
-            comments = [comm_date, pi_comm, po_comm, sp_comm]
-
             dailyHrsCol = self.__get_daily_hrs_col(currentSheet, BUILD)
 
             temp_hrs.append(
@@ -80,7 +80,7 @@ class Processor:
                 report.append([dates[i], hrs[i]])
 
             c_user = Employee(name=name, group=group[0],
-                              comments=comments, BUILD=BUILD, DB=self.DB)
+                              BUILD=BUILD, DB=self.DB)
 
             c_pay_period = PayPeriod(
                 employee_id=c_user.employee_id, date=date,
@@ -91,6 +91,19 @@ class Processor:
                 report=report, start_date=date,
                 BUILD=BUILD, DB=self.DB
             )
+
+            if False:
+                # This will need to use the `CommentWorker`
+                c_comments = Comments(
+                    pay_period_id=c_pay_period.pay_period_id,
+                    employee_id=c_user.employee_id,
+                    date=comm_date,
+                    punch_in_comment=pi_comm,
+                    punch_out_comment=po_comm,
+                    special_pay_comment=sp_comm,
+                    BUILD=BUILD,
+                    DB=self.DB
+                )
 
             if BUILD == "DEBUG":
                 log.info("Work Entries: %s",
@@ -129,18 +142,14 @@ class Processor:
         sanitized_name = [i.replace(',', '') for i in split_name]
         name = {"First Name": "", "Middle Name": "", "Last Name": []}
 
-        try:
-            for i in reversed(sanitized_name):
-                if len(i) == 1:
-                    name.update({"Middle Name": i})
-                elif name["First Name"] == "":
-                    name.update({"First Name": i})
-                else:
-                    name["Last Name"].append(i)
-                    name["Last Name"].reverse()
-
-        except Exception as e:
-            log.error(e)
+        for i in reversed(sanitized_name):
+            if len(i) == 1:
+                name.update({"Middle Name": i})
+            elif name["First Name"] == "":
+                name.update({"First Name": i})
+            else:
+                name["Last Name"].append(i)
+                name["Last Name"].reverse()
 
         return name
 

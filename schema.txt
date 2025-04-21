@@ -19,6 +19,7 @@
 4. PayPeriodComment
 - CommentID (PK)
 - PayPeriodID (FK -> PayPeriod)
+- EmployeeID (FK -> Employee)
 - WorkDate
 - PunchInComment
 - PunchOutComment

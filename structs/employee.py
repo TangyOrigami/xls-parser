@@ -12,7 +12,7 @@ class Employee:
     '''
 
     def __init__(self, name: str, group: str,
-                 comments: str, BUILD: str, DB: str):
+                 BUILD: str, DB: str):
         '''
             User Interface
         '''
@@ -22,7 +22,6 @@ class Employee:
             name=name, BUILD=BUILD)
 
         self.group = group
-        self.comments = comments
 
         args = (
             self.first_name,
@@ -72,7 +71,6 @@ class Employee:
         last_name = f"Last Name: \t{self.last_name}\n"
         employee_id = f"EID: \t{self.employee_id}\n"
         group = f"Group: \t{self.group}\n"
-        comments = f"Cmnts: \t{self.comments}\n"
 
         log.info(first_name + middle_name + last_name +
-                 employee_id + group + comments)
+                 employee_id + group)
