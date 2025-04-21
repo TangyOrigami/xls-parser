@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 
 from util.logger import CLogger
 from util.controller import Controller
-from util.pre_processor import PreProcessor
+from util.processor import Processor
 
 log = CLogger().get_logger()
 
@@ -79,7 +79,7 @@ class TableWidget(QWidget):
         self.status_label.setText("Processing file...")
 
         if BUILD == "DEBUG":
-            p = PreProcessor(BUILD, self.DB)
+            p = Processor(BUILD, self.DB)
             users = p.extract_data(file_path, BUILD)
             for i in users:
                 i._print_object_info()

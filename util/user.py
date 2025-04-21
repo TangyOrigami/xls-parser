@@ -39,7 +39,7 @@ class User:
 
         self.pay_period_id = self.__pay_period_id(BUILD)
 
-        logger.warn("OT: %s", self.__test(BUILD))
+        self.__test(BUILD)
 
     def __save_user(self, BUILD):
 
@@ -71,12 +71,18 @@ class User:
         return result
 
     def __test(self, BUILD):
-        result = self.get_ot_logged()
+        result = {**self.get_ot_logged(), **self.get_weekend_hrs()}
+        result_ = self.get_hrs_wrked()
 
+        logger.info("\n\nRegular Time")
+        for i in result_.keys():
+            logger.info("%s | %.2f", i, result_[i])
+        logger.info("TOTAL RT: %s", sum(result_.values()))
+
+        logger.info("\n\nOver Time")
         for i in result.keys():
-            logger.info("OT: %s | %.2f", i, result[i])
-
-        return len(result.values())
+            logger.info("%s | %.2f", i, result[i])
+        logger.info("TOTAL OT: %s", sum(result.values()))
 
     def __save_work_entry(self, BUILD):
         self.db.save_work_entry(BUILD=BUILD,
