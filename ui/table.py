@@ -1,9 +1,12 @@
+from datetime import datetime
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QWidget, QFileDialog, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem
+    QWidget, QFileDialog, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
+    QComboBox, QHBoxLayout, QPushButton
 )
 
 from util.logger import CLogger
+from util.db import DBInterface
 from util.controller import Controller
 from util.processor import Processor
 
@@ -19,8 +22,10 @@ class TableWidget(QWidget):
     def __init__(self, BUILD: str, DB: str):
         super().__init__()
         self.setAcceptDrops(True)  # Enable drag and drop
+
         if BUILD == "DEBUG":
             log.info("Table Widget: %s", BUILD)
+
         self.DB = DB
         self.BUILD = BUILD
 
@@ -30,12 +35,23 @@ class TableWidget(QWidget):
         self.title_label.setStyleSheet(
             "font-size: 20px; padding: 10px;")
 
-        # Table Widget for Pay Period Info
-        self.info_table = QTableWidget()
-        self.info_table.setRowCount(1)
-        self.info_table.setColumnCount(2)
-        self.info_table.setHorizontalHeaderLabels(
-            ["PayPeriodID", "StartDate"])
+        # Combobox Widget for Pay Period Info
+        self.pp_id = QComboBox()
+        self.pp_id_filler()
+        self.pp_id.currentTextChanged.connect(self.pp_id_choice)
+
+        self.ppd = QComboBox()
+        self.ppd_filler()
+        self.ppd.currentTextChanged.connect(self.ppd_choice)
+
+        self.refresh = QPushButton(text="Refresh")
+        self.refresh.clicked.connect(self.refresh_choice)
+
+        # Info Widget
+        self.info_section = QHBoxLayout()
+        self.info_section.addWidget(self.pp_id)
+        self.info_section.addWidget(self.ppd)
+        self.info_section.addWidget(self.refresh)
 
         # Table Widget for Displaying Data
         self.main_table = QTableWidget()
@@ -50,7 +66,7 @@ class TableWidget(QWidget):
 
         top_layout = QVBoxLayout()
         top_layout.addWidget(self.title_label)
-        top_layout.addWidget(self.info_table)
+        top_layout.addLayout(self.info_section)
 
         bottom_layout = QVBoxLayout()
         bottom_layout.addWidget(self.main_table)
@@ -74,8 +90,39 @@ class TableWidget(QWidget):
         if file_path:
             self.process_file(file_path, self.BUILD)
 
+    def refresh_choice(self):
+        self.ppd.clear()
+        self.pp_id.clear()
+
+        self.ppd_filler()
+        self.pp_id_filler()
+
+        self.update()
+
+    def ppd_filler(self):
+        db = DBInterface(self.DB)
+        dates = db._read_pay_period_dates(self.BUILD)
+
+        if dates is not None:
+            for d in dates:
+                self.ppd.addItem(d[0])
+
+    def ppd_choice(self, s):
+        log.info("Text Changed: %s", s)
+
+    def pp_id_filler(self):
+        db = DBInterface(self.DB)
+        ids = db._read_pay_period_ids(self.BUILD)
+
+        if ids is not None:
+            for i in ids:
+                self.pp_id.addItem(str(i[0]))
+
+    def pp_id_choice(self, s: str):
+        log.info("Text Changed: %s", s)
+        self.new_populate_main(DB=self.DB, BUILD=self.BUILD, pp_id=str(s))
+
     def process_file(self, file_path, BUILD):
-        self.status_label.setText("Processing file...")
 
         if BUILD == "DEBUG":
             p = Processor(BUILD, self.DB)
@@ -84,14 +131,14 @@ class TableWidget(QWidget):
         if BUILD == "PROD":
             c = Controller(BUILD, self.DB)
             users = c.extract_data(file_path, BUILD)
-            self.populate_table(users, BUILD)
+            self.old_populate_main(users, BUILD)
 
-        self.status_label.setText("File successfully processed!")
+        now = datetime.now().time()
 
-    def populate_info(self, users, BUILD):
-        assert NotImplemented
+        self.status_label.setText(
+            f"File successfully processed {now.strftime('%I:%M:%S')}")
 
-    def populate_main(self, users, BUILD):
+    def old_populate_main(self, users, BUILD):
 
         if not users:
             self.status_label.setText("No data found in file.")
@@ -105,8 +152,13 @@ class TableWidget(QWidget):
         self.main_table.setHorizontalHeaderLabels(headers)
         self.main_table.setRowCount(len(users))
 
-        self.__populate_main_iterator(
+        self.__populate_table_iterator(
             users, headers, BUILD)
+
+    def new_populate_main(self, DB: str, BUILD: str, pp_id: str):
+        db = DBInterface(DB)
+        entries = db._read_work_entries(BUILD=BUILD, args=(pp_id))
+        log.info(entries)
 
     def __add_cell_value(self, row_id, col_id, value, BUILD):
         try:
@@ -116,9 +168,10 @@ class TableWidget(QWidget):
                 row_id, col_id, item)
         except Exception as e:
             log.error(e)
+            assert e.with_traceback
 
-    def __populate_main_iterator(self, users, headers,
-                                 BUILD):
+    def __populate_table_iterator(self, users, headers,
+                                  BUILD):
         try:
             headers = [str(i) for i in headers]
 

@@ -1,8 +1,7 @@
 import sqlite3 as db
-from typing import List
 from util.logger import CLogger
 
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 
 class DBInterface:
@@ -10,10 +9,10 @@ class DBInterface:
         Class to handle DB interactions.
     '''
 
-    def __init__(self, DB):
+    def __init__(self, DB: str):
         self.DB = DB
 
-    def initialize_db(self, BUILD) -> None:
+    def initialize_db(self, BUILD: str) -> None:
         SCHEMA_VERSION = "1.0"
 
         sql = [
@@ -79,7 +78,7 @@ class DBInterface:
 
         self.__run_sql_batch(sql, BUILD)
 
-    def save_employee(self, BUILD, args: tuple = ()):
+    def save_employee(self, BUILD: str, args: tuple):
         """
             Adds a new employee if not already present.
         """
@@ -94,7 +93,7 @@ class DBInterface:
                        args=args,
                        BUILD=BUILD)
 
-    def _read_user_id(self, BUILD, args: tuple = ()) -> [tuple]:
+    def _read_user_id(self, BUILD: str, args: tuple) -> [tuple]:
         sql = """
         SELECT EmployeeID FROM Employee
         WHERE
@@ -110,7 +109,7 @@ class DBInterface:
 
         return result
 
-    def _read_pay_period_id(self, BUILD, args: tuple = ()) -> [tuple]:
+    def _read_pay_period_id(self, BUILD: str, args: tuple) -> [tuple]:
         sql = """
         SELECT PayPeriodID FROM PayPeriod
         WHERE
@@ -125,7 +124,7 @@ class DBInterface:
 
         return result
 
-    def _read_work_entry_id(self, BUILD, args: tuple = ()) -> [tuple]:
+    def _read_work_entry_id(self, BUILD: str, args: tuple) -> [tuple]:
         sql = """
         SELECT WorkEntryID FROM WorkEntry
         WHERE
@@ -140,7 +139,7 @@ class DBInterface:
 
         return result
 
-    def save_pay_period(self, BUILD, args: tuple = ()):
+    def save_pay_period(self, BUILD: str, args: tuple):
         sql = """
         INSERT OR IGNORE INTO PayPeriod
         (EmployeeID, StartDate, EndDate)
@@ -151,7 +150,7 @@ class DBInterface:
                        args=args,
                        BUILD=BUILD)
 
-    def save_work_entry(self, BUILD, args: tuple = ()):
+    def save_work_entry(self, BUILD: str, args: tuple):
         sql = """
         INSERT OR IGNORE INTO WorkEntry
         (PayPeriodID, WorkDate, Hours)
@@ -162,7 +161,7 @@ class DBInterface:
                        args=args,
                        BUILD=BUILD)
 
-    def save_comment(self, BUILD, args: tuple = ()):
+    def save_comment(self, BUILD: str, args: tuple):
         sql = """
         INSERT OR IGNORE INTO PayPeriodComment
         (PayPeriodID, EmployeeID, WorkDate,
@@ -174,7 +173,7 @@ class DBInterface:
                        args=args,
                        BUILD=BUILD)
 
-    def _read_comment_id(self, BUILD, args: tuple = ()) -> [tuple]:
+    def _read_comment_id(self, BUILD: str, args: tuple) -> [tuple]:
         sql = """
         SELECT CommentID FROM PayPeriodComment
         WHERE
@@ -189,10 +188,49 @@ class DBInterface:
 
         return result
 
+    def _read_pay_period_dates(self, BUILD: str) -> [tuple]:
+        sql = """
+        SELECT DISTINCT StartDate FROM PayPeriod
+        WHERE EXISTS (SELECT DISTINCT StartDate FROM PayPeriod);
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=(),
+                                     BUILD=BUILD)
+
+        return result
+
+    def _read_pay_period_ids(self, BUILD: str) -> [tuple]:
+        sql = """
+        SELECT DISTINCT PayPeriodID FROM PayPeriod
+        WHERE EXISTS (SELECT DISTINCT PayPeriodID FROM PayPeriod);
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=(),
+                                     BUILD=BUILD)
+
+        return result
+
+    def _read_work_entries(self, BUILD: str, args: tuple) -> [tuple]:
+        sql = """
+        SELECT * FROM WorkEntry
+        WHERE
+        PayPeriodID=?;
+        """
+
+        log.error("Args: %s", args)
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
+                                     BUILD=BUILD)
+
+        return result
+
     def __run_sql(self,
-                  BUILD,
+                  BUILD: str,
                   sql: str,
-                  args: tuple = (),
+                  args: tuple
                   ) -> None:
         """
             Private method to execute SQL statements with parameters.
@@ -203,8 +241,8 @@ class DBInterface:
                 conn.set_trace_callback(True)
                 conn.execute("PRAGMA foreign_keys = ON;")
                 if BUILD == "DEBUG":
-                    logger.info("Executing SQL: %s | Args: %s",
-                                sql.strip().splitlines()[0], args)
+                    log.info("Executing SQL: %s | Args: %s",
+                             sql.strip().splitlines()[0], args)
 
                 if args == ():
                     conn.execute(sql)
@@ -214,16 +252,16 @@ class DBInterface:
                 conn.commit()
 
                 if BUILD == "DEBUG":
-                    logger.info(
+                    log.info(
                         "__run_sql: SQL executed successfully.")
 
         except db.Error as e:
-            logger.exception("Failed to initialize database schema: %s", e)
+            log.exception("Failed to initialize database schema: %s", e)
             assert e.with_traceback
 
     def __run_sql_batch(self,
-                        sql_statements: List[str],
-                        BUILD
+                        sql_statements: [str],
+                        BUILD: str
                         ) -> None:
         '''
             Private method to execute SQL statements without parameters.
@@ -238,25 +276,25 @@ class DBInterface:
 
                 for statement in sql_statements:
                     if BUILD == "DEBUG":
-                        logger.warn("IN %s MODE", BUILD)
-                        logger.info("Executing SQL: %s",
-                                    statement.strip().splitlines()[0])
+                        log.warn("IN %s MODE", BUILD)
+                        log.info("Executing SQL: %s",
+                                 statement.strip().splitlines()[0])
                     cur.execute(statement)
 
             conn.commit()
             if BUILD == "DEBUG":
-                logger.warn("IN %s MODE", BUILD)
-                logger.info(
+                log.warn("IN %s MODE", BUILD)
+                log.info(
                     "__run_sql_batch: SQL executed successfully.\n")
 
         except db.Error as e:
-            logger.exception("Failed to initialize database schema: %s", e)
+            log.exception("Failed to initialize database schema: %s", e)
             assert e.with_traceback
 
     def __run_sql_read(self,
                        BUILD,
                        sql: str,
-                       args: tuple = ()
+                       args: tuple
                        ) -> []:
         """
             Private method to execute SQL reads on DB.
@@ -268,12 +306,16 @@ class DBInterface:
                 conn.execute("PRAGMA foreign_keys = ON;")
 
                 if BUILD == "DEBUG":
-                    logger.info("Executing SQL: %s | %s", sql, args)
+                    log.info("Executing SQL: %s | %s", sql, args)
 
                 cursor = conn.cursor()
 
                 if args == ():
                     cursor.execute(sql)
+                elif not isinstance(args, tuple):
+                    args = (args,) if isinstance(args, str) else tuple(args)
+
+                    cursor.execute(sql, args)
                 else:
                     cursor.execute(sql, args)
 
@@ -282,13 +324,10 @@ class DBInterface:
                 conn.commit()
 
                 if BUILD == "DEBUG":
-                    logger.info(
+                    log.info(
                         "__run_sql: SQL executed successfully.")
 
                 return employee_ids
         except db.Error as e:
-            logger.exception("Failed to read from db: %s", e)
+            log.exception("Failed to read from db: %s", e)
             assert e.with_traceback
-
-    def __run_sql_fetch(self):
-        assert NotImplemented
