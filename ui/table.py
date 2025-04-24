@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
@@ -26,8 +27,13 @@ class TableWidget(QWidget):
         if BUILD == "DEBUG":
             log.info("Table Widget: %s", BUILD)
 
+        # Config Varibles
         self.DB = DB
         self.BUILD = BUILD
+
+        # Global Variables
+        self.emp_id = None
+        self.pp_id = None
 
         # Title Label
         self.title_label = QLabel("Pay Period", self)
@@ -36,21 +42,20 @@ class TableWidget(QWidget):
             "font-size: 20px; padding: 10px;")
 
         # Combobox Widget for Pay Period Info
-        self.pp_id = QComboBox()
-        self.pp_id_filler()
-        self.pp_id.currentTextChanged.connect(self.pp_id_choice)
-
         self.ppd = QComboBox()
         self.ppd_filler()
         self.ppd.currentTextChanged.connect(self.ppd_choice)
+
+        self.employee = QComboBox()
+        self.employee.currentTextChanged.connect(self.employee_choice)
 
         self.refresh = QPushButton(text="Refresh")
         self.refresh.clicked.connect(self.refresh_choice)
 
         # Info Widget
         self.info_section = QHBoxLayout()
-        self.info_section.addWidget(self.pp_id)
         self.info_section.addWidget(self.ppd)
+        self.info_section.addWidget(self.employee)
         self.info_section.addWidget(self.refresh)
 
         # Table Widget for Displaying Data
@@ -92,10 +97,9 @@ class TableWidget(QWidget):
 
     def refresh_choice(self):
         self.ppd.clear()
-        self.pp_id.clear()
+        self.employee.clear()
 
         self.ppd_filler()
-        self.pp_id_filler()
 
         self.update()
 
@@ -107,20 +111,66 @@ class TableWidget(QWidget):
             for d in dates:
                 self.ppd.addItem(d[0])
 
-    def ppd_choice(self, s):
-        log.info("Text Changed: %s", s)
+    def ppd_choice(self, date: str):
+        log.info("Text Changed: %s", date)
+        self.selected_date = date
+        self.employee_filler(date)
 
-    def pp_id_filler(self):
+    def employee_filler(self, date: str):
+        self.employee.clear()
         db = DBInterface(self.DB)
-        ids = db._read_pay_period_ids(self.BUILD)
+        pp_ids = db._read_pay_period_ids(BUILD=self.BUILD, args=date)
+        emp_ids = []
 
-        if ids is not None:
-            for i in ids:
-                self.pp_id.addItem(str(i[0]))
+        log.info(pp_ids)
 
-    def pp_id_choice(self, s: str):
-        log.info("Text Changed: %s", s)
-        self.new_populate_main(DB=self.DB, BUILD=self.BUILD, pp_id=str(s))
+        if pp_ids is not None:
+            for pp_id in pp_ids:
+                emp_ids.append(db._read_employee_ids(
+                    BUILD=self.BUILD, args=pp_id)[0])
+
+        for emp_id in emp_ids:
+            emp_name = db._read_employee_name(BUILD=self.BUILD, args=emp_id)[0]
+            emp_name = ' '.join(' '.join(emp_name).split())
+            self.employee.addItem(emp_name)
+
+        self.employee.update()
+
+    def employee_choice(self, employee: str):
+
+        employee = self.__sanitize_name_for_db(employee)
+
+        log.info(employee)
+
+        if self.BUILD == "PROD":
+            self.new_populate_main(
+                DB=self.DB, BUILD=self.BUILD, employee=tuple(employee))
+
+    def __sanitize_name_for_db(self, employee: str):
+        '''
+            this fucking sucks and i need to fix it.
+            im not doing this right now since im very lazy
+            i hate this implementation.
+            god why do i do this to myself
+        '''
+        name = employee.split(' ')
+
+        if len(name) < 3:
+            name.insert(1, '')
+
+        if re.search(pattern="JR(.|)", string=name[2]):
+            name = [name[0], name[1] + ' ' + name[2]]
+
+        if len(name) > 3:
+            name = [name[0], name[1], name[2] + ' ' + name[3]]
+
+        if len(name[1]) >= 3 and len(name[2]) >= 3:
+            name = [name[0], name[1] + ' ' + name[2]]
+
+        if len(name) < 3:
+            name.insert(1, '')
+
+        return name
 
     def process_file(self, file_path, BUILD):
 
@@ -155,10 +205,11 @@ class TableWidget(QWidget):
         self.__populate_table_iterator(
             users, headers, BUILD)
 
-    def new_populate_main(self, DB: str, BUILD: str, pp_id: str):
+    def new_populate_main(self, DB: str, BUILD: str, employee: tuple):
         db = DBInterface(DB)
-        entries = db._read_work_entries(BUILD=BUILD, args=(pp_id))
-        log.info(entries)
+        emp_id = db._read_employee_id(BUILD=BUILD, args=employee)
+
+        log.warn("emp_id: %s | Date: %s", emp_id, self.selected_date)
 
     def __add_cell_value(self, row_id, col_id, value, BUILD):
         try:

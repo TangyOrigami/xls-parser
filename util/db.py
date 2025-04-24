@@ -114,8 +114,7 @@ class DBInterface:
         SELECT PayPeriodID FROM PayPeriod
         WHERE
         EmployeeID=? AND
-        StartDate=? AND
-        EndDate=?;
+        StartDate=?;
         """
 
         result = self.__run_sql_read(sql=sql,
@@ -200,14 +199,56 @@ class DBInterface:
 
         return result
 
-    def _read_pay_period_ids(self, BUILD: str) -> [tuple]:
+    def _read_pay_period_ids(self, BUILD: str, args: tuple) -> [tuple]:
         sql = """
-        SELECT DISTINCT PayPeriodID FROM PayPeriod
-        WHERE EXISTS (SELECT DISTINCT PayPeriodID FROM PayPeriod);
+        SELECT PayPeriodID FROM PayPeriod
+        WHERE
+        StartDate=?;
         """
 
         result = self.__run_sql_read(sql=sql,
-                                     args=(),
+                                     args=args,
+                                     BUILD=BUILD)
+
+        return result
+
+    def _read_employee_ids(self, BUILD: str, args: tuple) -> [tuple]:
+        sql = """
+        SELECT EmployeeID FROM PayPeriod
+        WHERE
+        PayPeriodID=?;
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
+                                     BUILD=BUILD)
+
+        return result
+
+    def _read_employee_id(self, BUILD: str, args: tuple) -> [tuple]:
+        sql = """
+        SELECT EmployeeID FROM Employee
+        WHERE
+        FirstName=? AND
+        MiddleName=? AND
+        LastName=?;
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
+                                     BUILD=BUILD)
+
+        return result
+
+    def _read_employee_name(self, BUILD: str, args: tuple) -> [tuple]:
+        sql = """
+        SELECT FirstName, MiddleName, LastName FROM Employee
+        WHERE
+        EmployeeID=?;
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
                                      BUILD=BUILD)
 
         return result
