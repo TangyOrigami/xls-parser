@@ -268,13 +268,39 @@ class DBInterface:
 
     def _read_work_entries(self, BUILD: str, args: tuple) -> [tuple]:
         sql = """
-        SELECT * FROM WorkEntry
+        SELECT WorkDate, Hours FROM WorkEntry
         WHERE
         PayPeriodID=?;
         """
 
         result = self.__run_sql_read(sql=sql,
                                      args=args,
+                                     BUILD=BUILD)
+
+        return result
+
+    def _default_employee(self, BUILD: str) -> [tuple]:
+        sql = """
+        SELECT FirstName, MiddleName, LastName
+        FROM Employee ORDER BY ROWID ASC LIMIT 1;
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=(),
+                                     BUILD=BUILD)
+
+        return result
+
+    def _default_date(self, BUILD: str) -> [tuple]:
+        sql = """
+        SELECT DISTINCT StartDate
+        FROM PayPeriod
+        ORDER BY StartDate
+        LIMIT 1;
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=(),
                                      BUILD=BUILD)
 
         return result
@@ -381,5 +407,5 @@ class DBInterface:
 
                 return employee_ids
         except db.Error as e:
-            log.exception("Failed to read from db: %s", e)
+            log.exception("Failed to read from db: %s | SQL: %s", e, sql)
             assert e.with_traceback

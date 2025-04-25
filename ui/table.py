@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget, QFileDialog, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
@@ -104,6 +104,7 @@ class TableWidget(QWidget):
         self.update()
 
     def ppd_filler(self):
+        self.selected_date = self.ppd.currentText()
         db = DBInterface(self.DB)
         dates = db._read_pay_period_dates(self.BUILD)
 
@@ -112,24 +113,21 @@ class TableWidget(QWidget):
                 self.ppd.addItem(d[0])
 
     def ppd_choice(self, date: str):
-        log.info("SelectedDate: %s", date)
         self.selected_date = date
         self.employee.clear()
         self.employee_filler(date)
+        self.selected_employee = self.employee.currentText()
 
     def employee_filler(self, date: str):
         db = DBInterface(self.DB)
         pp_ids = db._read_pay_period_ids(BUILD=self.BUILD, args=date)
         emp_ids = []
 
-        log.info(pp_ids)
-
         if pp_ids is not None:
             for pp_id in pp_ids:
                 emp_ids.append(db._read_employee_ids(
                     BUILD=self.BUILD, args=pp_id)[0])
 
-        log.info("EmpIDS: %s", emp_ids)
         for emp_id in emp_ids:
             emp_name = db._read_employee_name(BUILD=self.BUILD, args=emp_id)[0]
             emp_name = ' '.join(' '.join(emp_name).split())
@@ -138,12 +136,12 @@ class TableWidget(QWidget):
         self.employee.update()
 
     def employee_choice(self, employee: str):
+        db = DBInterface(self.DB)
+
         if employee == "":
-            employee = "First Middle Last"
+            employee = str(db._default_employee(BUILD=self.BUILD)[0])
 
         employee = self.__sanitize_name_for_db(employee)
-
-        log.info(employee)
 
         self.new_populate_main(
             DB=self.DB, BUILD=self.BUILD,
@@ -212,8 +210,6 @@ class TableWidget(QWidget):
         if not emp_id:
             pp_id = db._read_pay_period_id_by_date(BUILD=BUILD, args=date)
 
-            log.error("PPID: %s", pp_id)
-
             work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
         else:
             pp_id = str(db._read_pay_period_id(
@@ -222,6 +218,35 @@ class TableWidget(QWidget):
             work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
 
         log.info("Work Entries: %s", work_entries)
+
+        self.main_table.setColumnCount(2)
+        self.main_table.setRowCount(14)
+        self.main_table.setHorizontalHeaderLabels(["Date", "Hours"])
+
+        if self.selected_date == '':
+            self.selected_date = str(db._default_date(BUILD)[0][0])
+
+        date = datetime.strptime(self.selected_date, "%Y-%m-%d").date()
+
+        for i in range(14):
+            curr_date = date+timedelta(i)
+
+            self.__add_cell_value(
+                BUILD=BUILD,
+                row_id=i,
+                col_id=0,
+                value=curr_date
+            )
+
+            if BUILD == "PROD":
+                for j in work_entries:
+                    if curr_date == j[0]:
+                        self.__add_cell_value(
+                            BUILD=BUILD,
+                            row_id=i,
+                            col_id=1,
+                            value=j[1]
+                        )
 
     def __add_cell_value(self, row_id, col_id, value, BUILD):
         try:
