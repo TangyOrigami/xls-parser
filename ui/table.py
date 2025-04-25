@@ -112,12 +112,12 @@ class TableWidget(QWidget):
                 self.ppd.addItem(d[0])
 
     def ppd_choice(self, date: str):
-        log.info("Text Changed: %s", date)
+        log.info("SelectedDate: %s", date)
         self.selected_date = date
+        self.employee.clear()
         self.employee_filler(date)
 
     def employee_filler(self, date: str):
-        self.employee.clear()
         db = DBInterface(self.DB)
         pp_ids = db._read_pay_period_ids(BUILD=self.BUILD, args=date)
         emp_ids = []
@@ -129,6 +129,7 @@ class TableWidget(QWidget):
                 emp_ids.append(db._read_employee_ids(
                     BUILD=self.BUILD, args=pp_id)[0])
 
+        log.info("EmpIDS: %s", emp_ids)
         for emp_id in emp_ids:
             emp_name = db._read_employee_name(BUILD=self.BUILD, args=emp_id)[0]
             emp_name = ' '.join(' '.join(emp_name).split())
@@ -137,34 +138,32 @@ class TableWidget(QWidget):
         self.employee.update()
 
     def employee_choice(self, employee: str):
+        if employee == "":
+            employee = "First Middle Last"
 
         employee = self.__sanitize_name_for_db(employee)
 
         log.info(employee)
 
-        if self.BUILD == "PROD":
-            self.new_populate_main(
-                DB=self.DB, BUILD=self.BUILD, employee=tuple(employee))
+        self.new_populate_main(
+            DB=self.DB, BUILD=self.BUILD,
+            employee=employee,
+            date=(self.selected_date,)
+        )
 
     def __sanitize_name_for_db(self, employee: str):
         '''
-            this fucking sucks and i need to fix it.
-            im not doing this right now since im very lazy
-            i hate this implementation.
-            god why do i do this to myself
         '''
+
         name = employee.split(' ')
 
         if len(name) < 3:
             name.insert(1, '')
 
-        if re.search(pattern="JR(.|)", string=name[2]):
-            name = [name[0], name[1] + ' ' + name[2]]
-
         if len(name) > 3:
             name = [name[0], name[1], name[2] + ' ' + name[3]]
 
-        if len(name[1]) >= 3 and len(name[2]) >= 3:
+        if len(name[1]) >= 3 or re.search(pattern="JR(.|)", string=name[2]) and len(name[1]) > 1:
             name = [name[0], name[1] + ' ' + name[2]]
 
         if len(name) < 3:
@@ -205,11 +204,16 @@ class TableWidget(QWidget):
         self.__populate_table_iterator(
             users, headers, BUILD)
 
-    def new_populate_main(self, DB: str, BUILD: str, employee: tuple):
+    def new_populate_main(self, DB: str, BUILD: str, employee: tuple, date: tuple):
         db = DBInterface(DB)
-        emp_id = db._read_employee_id(BUILD=BUILD, args=employee)
+        emp_id = db._read_employee_id(BUILD=BUILD, args=employee)[0]
 
-        log.warn("emp_id: %s | Date: %s", emp_id, self.selected_date)
+        pp_id = str(db._read_pay_period_id(
+            BUILD=BUILD, args=emp_id+date)[0][0])
+
+        work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
+
+        log.info("WE: %s", work_entries)
 
     def __add_cell_value(self, row_id, col_id, value, BUILD):
         try:
