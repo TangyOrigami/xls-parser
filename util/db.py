@@ -123,6 +123,19 @@ class DBInterface:
 
         return result
 
+    def _read_pay_period_id_by_date(self, BUILD: str, args: tuple) -> [tuple]:
+        sql = """
+        SELECT PayPeriodID FROM PayPeriod
+        WHERE
+        StartDate=?;
+        """
+
+        result = self.__run_sql_read(sql=sql,
+                                     args=args,
+                                     BUILD=BUILD)
+
+        return result
+
     def _read_work_entry_id(self, BUILD: str, args: tuple) -> [tuple]:
         sql = """
         SELECT WorkEntryID FROM WorkEntry
@@ -259,8 +272,6 @@ class DBInterface:
         WHERE
         PayPeriodID=?;
         """
-
-        log.error("Args: %s", args)
 
         result = self.__run_sql_read(sql=sql,
                                      args=args,

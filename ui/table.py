@@ -204,16 +204,24 @@ class TableWidget(QWidget):
         self.__populate_table_iterator(
             users, headers, BUILD)
 
-    def new_populate_main(self, DB: str, BUILD: str, employee: tuple, date: tuple):
+    def new_populate_main(self, DB: str, BUILD: str,
+                          employee: tuple, date: tuple):
         db = DBInterface(DB)
-        emp_id = db._read_employee_id(BUILD=BUILD, args=employee)[0]
+        emp_id = db._read_employee_id(BUILD=BUILD, args=employee)
 
-        pp_id = str(db._read_pay_period_id(
-            BUILD=BUILD, args=emp_id+date)[0][0])
+        if not emp_id:
+            pp_id = db._read_pay_period_id_by_date(BUILD=BUILD, args=date)
 
-        work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
+            log.error("PPID: %s", pp_id)
 
-        log.info("WE: %s", work_entries)
+            work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
+        else:
+            pp_id = str(db._read_pay_period_id(
+                BUILD=BUILD, args=emp_id[0]+date)[0][0])
+
+            work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
+
+        log.info("Work Entries: %s", work_entries)
 
     def __add_cell_value(self, row_id, col_id, value, BUILD):
         try:
