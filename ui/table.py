@@ -215,9 +215,8 @@ class TableWidget(QWidget):
             pp_id = str(db._read_pay_period_id(
                 BUILD=BUILD, args=emp_id[0]+date)[0][0])
 
-            work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
-
-        log.info("Work Entries: %s", work_entries)
+            work_entries = list(db._read_work_entries(BUILD=BUILD, args=pp_id))
+        self.main_table.clear()
 
         self.main_table.setColumnCount(2)
         self.main_table.setRowCount(14)
@@ -228,25 +227,37 @@ class TableWidget(QWidget):
 
         date = datetime.strptime(self.selected_date, "%Y-%m-%d").date()
 
-        for i in range(14):
-            curr_date = date+timedelta(i)
+        if work_entries is not []:
+            for i in range(14):
+                curr_date = date+timedelta(i)
 
-            self.__add_cell_value(
-                BUILD=BUILD,
-                row_id=i,
-                col_id=0,
-                value=curr_date
-            )
+                self.__add_cell_value(
+                    BUILD=BUILD,
+                    row_id=i,
+                    col_id=0,
+                    value=curr_date
+                )
 
-            if BUILD == "PROD":
-                for j in work_entries:
-                    if curr_date == j[0]:
+                for x, j in enumerate(work_entries):
+                    table_date = self.main_table.item(i, 0).text()
+                    if table_date == j[0]:
                         self.__add_cell_value(
                             BUILD=BUILD,
                             row_id=i,
                             col_id=1,
                             value=j[1]
                         )
+                        work_entries.pop(x)
+        else:
+            for i in range(14):
+                curr_date = date+timedelta(i)
+
+                self.__add_cell_value(
+                    BUILD=BUILD,
+                    row_id=i,
+                    col_id=0,
+                    value=curr_date
+                )
 
     def __add_cell_value(self, row_id, col_id, value, BUILD):
         try:
