@@ -60,7 +60,10 @@ class TableWidget(QWidget):
 
         # Table Widget for Displaying Data
         self.main_table = QTableWidget()
-        self.main_table.setColumnCount(0)  # Will be set after parsing
+        self.main_table.setColumnCount(2)
+        self.main_table.setRowCount(14)
+        self.main_table.setHorizontalHeaderLabels(["Date", "Hours"])
+
         self.main_table.setStyleSheet("border: 1px solid gray;")
         self.main_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers)
@@ -99,6 +102,7 @@ class TableWidget(QWidget):
         self.ppd.clear()
         self.employee.clear()
 
+        self.selected_date = self.ppd.currentText()
         self.ppd_filler()
 
         self.update()
@@ -143,11 +147,12 @@ class TableWidget(QWidget):
 
         employee = self.__sanitize_name_for_db(employee)
 
-        self.new_populate_main(
-            DB=self.DB, BUILD=self.BUILD,
-            employee=employee,
-            date=(self.selected_date,)
-        )
+        if self.selected_date != "":
+            self.populate_main(
+                DB=self.DB, BUILD=self.BUILD,
+                employee=employee,
+                date=(self.selected_date,)
+            )
 
     def __sanitize_name_for_db(self, employee: str):
         '''
@@ -171,44 +176,24 @@ class TableWidget(QWidget):
 
     def process_file(self, file_path, BUILD):
 
-        if BUILD == "DEBUG":
-            p = Processor(BUILD, self.DB)
-            users = p.extract_data(file_path, BUILD)
-
-        if BUILD == "PROD":
-            c = Controller(BUILD, self.DB)
-            users = c.extract_data(file_path, BUILD)
-            self.old_populate_main(users, BUILD)
+        p = Processor(BUILD, self.DB)
+        p.extract_data(file_path, BUILD)
 
         now = datetime.now().time()
 
         self.status_label.setText(
             f"File successfully processed {now.strftime('%I:%M:%S')}")
 
-    def old_populate_main(self, users, BUILD):
+    def populate_main(self, DB: str, BUILD: str,
+                      employee: tuple, date: tuple):
 
-        if not users:
-            self.status_label.setText("No data found in file.")
-            return
-
-        pay_period = users[0].pay_period_dates()
-        pay_period = [str(i) for i in pay_period]
-        headers = ["employee_name", "employee_group"] + pay_period
-
-        self.main_table.setColumnCount(len(headers))
-        self.main_table.setHorizontalHeaderLabels(headers)
-        self.main_table.setRowCount(len(users))
-
-        self.__populate_table_iterator(
-            users, headers, BUILD)
-
-    def new_populate_main(self, DB: str, BUILD: str,
-                          employee: tuple, date: tuple):
         db = DBInterface(DB)
         emp_id = db._read_employee_id(BUILD=BUILD, args=employee)
+        log.error("emp_id: %s", emp_id)
 
         if not emp_id:
-            pp_id = db._read_pay_period_id_by_date(BUILD=BUILD, args=date)
+            pp_id = db._read_pay_period_id_by_date(
+                BUILD=BUILD, args=date)[0]
 
             work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
         else:
@@ -216,11 +201,8 @@ class TableWidget(QWidget):
                 BUILD=BUILD, args=emp_id[0]+date)[0][0])
 
             work_entries = list(db._read_work_entries(BUILD=BUILD, args=pp_id))
-        self.main_table.clear()
 
-        self.main_table.setColumnCount(2)
-        self.main_table.setRowCount(14)
-        self.main_table.setHorizontalHeaderLabels(["Date", "Hours"])
+        self.main_table.clearContents()
 
         if self.selected_date == '':
             self.selected_date = str(db._default_date(BUILD)[0][0])
