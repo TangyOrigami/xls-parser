@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
 
 from util.logger import CLogger
 from util.db import DBInterface
-from util.controller import Controller
 from util.processor import Processor
 
 log = CLogger().get_logger()
