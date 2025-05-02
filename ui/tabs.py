@@ -1,17 +1,17 @@
-from PyQt6.QtWidgets import QTabWidget, QVBoxLayout, QLabel, QWidget
+from PyQt6.QtWidgets import QLabel, QTabWidget, QVBoxLayout, QWidget
 
-from ui.table import TableWidget
 from ui.dashboard import Dashboard
+from ui.table import TableWidget
 from util.logger import CLogger
 
 log = CLogger().get_logger()
 
 
 class TabMenu(QTabWidget):
-    '''
-        PyQt6 Widget that scaffolds the structure of the app
-        as a tab menu on the left handside of the window.
-    '''
+    """
+    PyQt6 Widget that scaffolds the structure of the app
+    as a tab menu on the left handside of the window.
+    """
 
     def __init__(self, BUILD, DB):
         super().__init__()

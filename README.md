@@ -1,5 +1,12 @@
 # Timesheet Analyzer
 
+|Sybmol|Meaning|
+|:----:|:-----:|
+|?|Important|
+|!|Urgent|
+|,|Backburner|
+|.|Done|
+
 ## TODO:
 1. [.] Finish setting up the '-d' flag to run the application in debug mode.
     - [.] Flag should activate the loggers that are spread all throught the code base. 
@@ -28,11 +35,3 @@
 
 5. [?] Clean up code.
     - [?] This will never be done, it is purpusefully an unreachable goal.
-
-
-|Sybmol|Meaning|
-|:----:|:-----:|
-|?|Important|
-|!|Urgent|
-|,|Backburner|
-|.|Done|

@@ -1,12 +1,11 @@
-import sys
 import os
-from dotenv import load_dotenv
+import sys
 
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow
-)
+from dotenv import load_dotenv
 from PyQt6.QtCore import QCommandLineOption, QCommandLineParser
 from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import QApplication, QMainWindow
+
 from ui.tabs import TabMenu
 from util.db import DBInterface
 from util.logger import CLogger
@@ -14,20 +13,19 @@ from util.logger import CLogger
 load_dotenv()
 logger = CLogger().get_logger()
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def args_parser(app) -> [str, str]:
-    '''
-        Helper function to parse CLI args.
-        Default environment variables will be set in the .env file.
-    '''
+    """
+    Helper function to parse CLI args.
+    Default environment variables will be set in the .env file.
+    """
     parser = QCommandLineParser()
     parser.addHelpOption()
     parser.addVersionOption()
 
-    debug_option = QCommandLineOption(
-        ["d", "debug"],
-        "Set logging to debug."
-    )
+    debug_option = QCommandLineOption(["d", "debug"], "Set logging to debug.")
     parser.addOption(debug_option)
 
     parser.process(app)
@@ -60,8 +58,7 @@ class MainWindow(QMainWindow):
         # Menu
         open_button = QAction("Open", self)
         open_button.setStatusTip("Open a file")
-        open_button.triggered.connect(
-            self.tab_menu.table_widget.open_file_dialog)
+        open_button.triggered.connect(self.tab_menu.table_widget.open_file_dialog)
 
         save_button = QAction("Save", self)
         save_button.setStatusTip("Save current view")
@@ -105,7 +102,7 @@ class MainWindow(QMainWindow):
         db.initialize_db(BUILD)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = sys.argv
     app = QApplication(args)
     app.setApplicationName("Timesheet Analyzer")
