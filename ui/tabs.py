@@ -13,15 +13,15 @@ class TabMenu(QTabWidget):
     as a tab menu on the left handside of the window.
     """
 
-    def __init__(self, BUILD, DB):
+    def __init__(self, BUILD):
         super().__init__()
         if BUILD == "DEBUG":
             log.info("Tab Menu: %s", BUILD)
 
         self.setTabPosition(QTabWidget.TabPosition.West)
 
-        self.table_widget = TableWidget(BUILD, DB)
-        self.dashboard_widget = Dashboard(BUILD, DB)
+        self.table_widget = TableWidget(BUILD)
+        self.dashboard_widget = Dashboard(BUILD)
 
         # Table
         table_widget = self.table_widget

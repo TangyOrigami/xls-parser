@@ -1,6 +1,7 @@
 import sqlite3
 import sqlite3 as db
 import threading
+from typing import Union
 
 from structs.result import Result as r
 from util.logger import CLogger
@@ -9,10 +10,6 @@ log = CLogger().get_logger()
 
 
 class DBInterface:
-    """
-    Class to handle DB interactions.
-    """
-
     _instance = None
     _lock = threading.Lock()
 
@@ -25,19 +22,18 @@ class DBInterface:
                     cls._instance.cursor = None
         return cls._instance
 
-    def connect(self, db_name):
+    @classmethod
+    def reset_instance(cls):
+        if cls._instance and cls._instance.connection:
+            cls._instance.connection.close()
+        cls._instance = None
+
+    def connect(self, db_name: str):
         if not self.connection:
             self.connection = sqlite3.connect(db_name)
             self.cursor = self.connection.cursor()
-
-    def execute(self, sql, params=()):
-        try:
-            self.cursor.execute(sql, params)
-            self.connection.commit()
-            return self.cursor
-        except sqlite3.Error as e:
-            log.error(e)
-            assert "An error ocurred when performing an operation on database"
+            self.connection.execute("PRAGMA foreign_keys = ON;")
+            self.connection.set_trace_callback(True)
 
     def fetchone(self):
         return self.cursor.fetchone()
@@ -50,12 +46,17 @@ class DBInterface:
             self.connection.close()
             self.connection = None
 
-    def __init__(self, DB: str):
-        self.DB = DB
+    def __init__(self, DB: str = "app.db"):
+        if not hasattr(self, "DB"):
+            self.DB = DB
+            self.connect(DB)
+        elif self.DB != DB:
+            log.warning(
+                f"Ignored attempt to reinitialize DBInterface with a different path: {DB}"
+            )
 
-    def initialize_db(self, BUILD: str):
+    def initialize_db(self, BUILD: str = "TEST") -> r:
         SCHEMA_VERSION = "1.0"
-
         sql = [
             """
             CREATE TABLE IF NOT EXISTS Employee(
@@ -111,329 +112,156 @@ class DBInterface:
             VALUES ('SchemaVersion', '{SCHEMA_VERSION}')
             """,
         ]
+        return self.__run_sql_batch(sql, BUILD)
 
-        try:
-            self.__run_sql_batch(sql, BUILD)
-            return r.SUCCESS
-
-        except Exception as e:
-            log.error(e.with_traceback)
-            return r.ERROR
-
-    def save_employee(self, BUILD: str, args: tuple):
-        """
-        Adds a new employee if not already present.
-        """
-
+    def save_employee(self, args: tuple, BUILD: str = "TEST") -> r:
         sql = """
         INSERT OR IGNORE INTO Employee
         (FirstName, MiddleName, LastName, EmployeeGroup)
         VALUES (?, ?, ?, ?);
         """
+        return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-        try:
-            self.__run_sql(sql=sql, args=args, BUILD=BUILD)
-            return r.SUCCESS
-
-        except Exception as e:
-            log.error(e.with_traceback)
-            return r.ERROR
-
-    def save_pay_period(self, BUILD: str, args: tuple):
+    def save_pay_period(self, args: tuple, BUILD: str = "TEST") -> r:
         sql = """
         INSERT OR IGNORE INTO PayPeriod
         (EmployeeID, StartDate, EndDate)
         VALUES (?, ?, ?);
         """
+        return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-        self.__run_sql(sql=sql, args=args, BUILD=BUILD)
-
-    def save_work_entry(self, BUILD: str, args: tuple):
+    def save_work_entry(self, args: tuple, BUILD: str = "TEST") -> r:
         sql = """
         INSERT OR IGNORE INTO WorkEntry
         (PayPeriodID, WorkDate, Hours)
         VALUES (?, ?, ?);
         """
+        return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-        self.__run_sql(sql=sql, args=args, BUILD=BUILD)
-
-    def save_comment(self, BUILD: str, args: tuple):
+    def save_comment(self, args: tuple, BUILD: str = "TEST") -> r:
         sql = """
         INSERT OR IGNORE INTO PayPeriodComment
         (PayPeriodID, EmployeeID, WorkDate,
         PunchInComment, PunchOutComment, SpecialPayComment)
         VALUES (?, ?, ?, ?, ?, ?);
         """
+        return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-        self.__run_sql(sql=sql, args=args, BUILD=BUILD)
-
-    def delete_employee(self, BUILD: str, args: tuple):
-        """
-        Deletes an employee by exact name and group match.
-        """
-
+    def delete_employee(self, args: tuple, BUILD: str = "TEST") -> r:
         sql = """
         DELETE FROM Employee
-        WHERE
-        FirstName=? AND
-        MiddleName=? AND
-        LastName=? AND
-        EmployeeGroup=?;
+        WHERE FirstName=? AND MiddleName=? AND LastName=? AND EmployeeGroup=?;
         """
+        return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
+
+    # READ METHODS
+
+    def _read_employee_id(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT EmployeeID FROM Employee WHERE FirstName=? AND MiddleName=? AND LastName=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_employee_name(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT FirstName, MiddleName, LastName FROM Employee WHERE EmployeeID=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_pay_period_id(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT PayPeriodID FROM PayPeriod WHERE EmployeeID=? AND StartDate=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_pay_period_id_by_date(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT PayPeriodID FROM PayPeriod WHERE StartDate=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_work_entry_id(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT WorkEntryID FROM WorkEntry WHERE PayPeriodID=? AND WorkDate=? AND Hours=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_comment_id(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT CommentID FROM PayPeriodComment WHERE PayPeriodID=? AND EmployeeID=? AND WorkDate=?"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_pay_period_ids(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT PayPeriodID FROM PayPeriod WHERE StartDate=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_employee_ids(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT EmployeeID FROM PayPeriod WHERE PayPeriodID=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_work_entries(
+        self, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        sql = "SELECT WorkDate, Hours FROM WorkEntry WHERE PayPeriodID=?;"
+        return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
+
+    def _read_pay_period_dates(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
+        sql = "SELECT DISTINCT StartDate FROM PayPeriod WHERE EXISTS (SELECT DISTINCT StartDate FROM PayPeriod);"
+
+        return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
+
+    def _default_employee(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
+        sql = "SELECT FirstName, MiddleName, LastName FROM Employee ORDER BY ROWID ASC LIMIT 1;"
+        return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
+
+    def _default_date(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
+        sql = "SELECT DISTINCT StartDate FROM PayPeriod ORDER BY StartDate LIMIT 1;"
+        return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
+
+    def __run_sql(self, sql: str, args: tuple, BUILD: str = "TEST") -> r:
+        self.__ensure_connection()
 
         try:
-            self.__run_sql(sql=sql, args=args, BUILD=BUILD)
+            self.cursor.execute(sql, args or ())
+            self.connection.commit()
             return r.SUCCESS
-
-        except Exception as e:
-            log.error(e.with_traceback)
-            return r.ERROR
-
-    def _read_user_id(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT EmployeeID FROM Employee
-        WHERE
-        FirstName=? AND
-        MiddleName=? AND
-        LastName=? AND
-        EmployeeGroup=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_pay_period_id(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT PayPeriodID FROM PayPeriod
-        WHERE
-        EmployeeID=? AND
-        StartDate=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_pay_period_id_by_date(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT PayPeriodID FROM PayPeriod
-        WHERE
-        StartDate=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_work_entry_id(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT WorkEntryID FROM WorkEntry
-        WHERE
-        PayPeriodID=? AND
-        WorkDate=? AND
-        Hours=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_comment_id(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT CommentID FROM PayPeriodComment
-        WHERE
-        PayPeriodID=? AND
-        EmployeeID=? AND
-        WorkDate=?
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_pay_period_dates(self, BUILD: str):
-        sql = """
-        SELECT DISTINCT StartDate FROM PayPeriod
-        WHERE EXISTS (SELECT DISTINCT StartDate FROM PayPeriod);
-        """
-
-        result = self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
-
-        return result
-
-    def _read_pay_period_ids(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT PayPeriodID FROM PayPeriod
-        WHERE
-        StartDate=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_employee_ids(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT EmployeeID FROM PayPeriod
-        WHERE
-        PayPeriodID=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_employee_id(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT EmployeeID FROM Employee
-        WHERE
-        FirstName=? AND
-        MiddleName=? AND
-        LastName=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_employee_name(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT FirstName, MiddleName, LastName FROM Employee
-        WHERE
-        EmployeeID=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _read_work_entries(self, BUILD: str, args: tuple):
-        sql = """
-        SELECT WorkDate, Hours FROM WorkEntry
-        WHERE
-        PayPeriodID=?;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
-
-        return result
-
-    def _default_employee(self, BUILD: str):
-        sql = """
-        SELECT FirstName, MiddleName, LastName
-        FROM Employee ORDER BY ROWID ASC LIMIT 1;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
-
-        return result
-
-    def _default_date(self, BUILD: str):
-        sql = """
-        SELECT DISTINCT StartDate
-        FROM PayPeriod
-        ORDER BY StartDate
-        LIMIT 1;
-        """
-
-        result = self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
-
-        return result
-
-    def __run_sql(self, BUILD: str, sql: str, args: tuple):
-        """
-        Private method to execute SQL statements with parameters.
-        """
-
-        try:
-            with db.connect(self.DB) as conn:
-                conn.set_trace_callback(True)
-                conn.execute("PRAGMA foreign_keys = ON;")
-                if BUILD == "DEBUG":
-                    log.info(
-                        "Executing SQL: %s | Args: %s",
-                        sql.strip().splitlines()[0],
-                        args,
-                    )
-
-                if args == ():
-                    conn.execute(sql)
-                else:
-                    conn.execute(sql, args)
-
-                conn.commit()
-
-                if BUILD == "DEBUG":
-                    log.info("__run_sql: SQL executed successfully.")
-
-                return r.SUCCESS
-
         except db.Error as e:
-            log.error("Failed to initialize database schema: %s", e.with_traceback)
+            log.error("__run_sql error: %s | %s", type(e).__name__, e.args)
             return r.ERROR
 
-    def __run_sql_batch(self, sql_statements: [str], BUILD: str):
-        """
-        Private method to execute SQL statements without parameters.
-        """
+    def __run_sql_batch(self, sql_statements: list[str], BUILD: str = "TEST") -> r:
+        self.__ensure_connection()
 
         try:
-
-            with db.connect(self.DB) as conn:
-                conn.set_trace_callback(True)
-                conn.execute("PRAGMA foreign_keys = ON;")
-                cur = conn.cursor()
-
-                for statement in sql_statements:
-                    if BUILD == "DEBUG":
-                        log.warn("IN %s MODE", BUILD)
-                        log.info("Executing SQL: %s", statement.strip().splitlines()[0])
-                    cur.execute(statement)
-
-            conn.commit()
-            if BUILD == "DEBUG":
-                log.warn("IN %s MODE", BUILD)
-                log.info("__run_sql_batch: SQL executed successfully.\n")
-
+            for statement in sql_statements:
+                self.cursor.execute(statement)
+            self.connection.commit()
             return r.SUCCESS
-
         except db.Error as e:
-            log.error("Failed to initialize database schema: %s", e.with_traceback)
+            log.error("__run_sql error: %s | %s", type(e).__name__, e.args)
             return r.ERROR
 
-    def __run_sql_read(self, BUILD, sql: str, args: tuple):
-        """
-        Private method to execute SQL reads on DB.
-        """
+    def __run_sql_read(
+        self, sql: str, args: tuple, BUILD: str = "TEST"
+    ) -> Union[list[tuple], r]:
+        self.__ensure_connection()
+
+        log.info("SQL: %s | ARGS: %s", sql, args)
 
         try:
-            with db.connect(self.DB) as conn:
-                conn.set_trace_callback(True)
-                conn.execute("PRAGMA foreign_keys = ON;")
-
-                if BUILD == "DEBUG":
-                    log.info("Executing SQL: %s | %s", sql, args)
-
-                cursor = conn.cursor()
-
-                if args == ():
-                    cursor.execute(sql)
-                elif not isinstance(args, tuple):
-                    args = (args,) if isinstance(args, str) else tuple(args)
-
-                    cursor.execute(sql, args)
-                else:
-                    cursor.execute(sql, args)
-
-                employee_ids = cursor.fetchall()
-
-                conn.commit()
-
-                if BUILD == "DEBUG":
-                    log.info("__run_sql: SQL executed successfully.")
-
-                return employee_ids
+            self.cursor.execute(sql, args or ())
+            results = self.cursor.fetchall()
+            self.connection.commit()
+            return results
         except db.Error as e:
-            log.error("Failed to read from db: %s | SQL: %s", e.with_traceback, sql)
+            log.error("__run_sql error: %s | %s", type(e).__name__, e.args)
             return r.ERROR
+
+    def __ensure_connection(self):
+        if not self.connection:
+            self.connect(self.DB)

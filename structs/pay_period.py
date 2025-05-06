@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+
 from util.db import DBInterface
 from util.logger import CLogger
 
@@ -6,13 +7,9 @@ log = CLogger().get_logger()
 
 
 class PayPeriod:
-    def __init__(self,
-                 employee_id: int,
-                 date: datetime,
-                 BUILD: str,
-                 DB: str):
+    def __init__(self, employee_id: int, date: datetime, BUILD: str):
 
-        db = DBInterface(DB)
+        db = DBInterface()
 
         self.start_date = date
         self.end_date = date + timedelta(days=14)
@@ -21,8 +18,7 @@ class PayPeriod:
 
         self.__save_pay_period(BUILD=BUILD, db=db, args=args)
 
-        self.pay_period_id = self.__get_pay_period_id(
-            BUILD=BUILD, db=db, args=args)
+        self.pay_period_id = self.__get_pay_period_id(BUILD=BUILD, db=db, args=args[:2])
 
         self.employee_id = employee_id
 

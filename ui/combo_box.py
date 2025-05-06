@@ -1,5 +1,6 @@
-from PyQt6.QtWidgets import QApplication, QComboBox, QLineEdit
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication, QComboBox, QLineEdit
+
 
 class SearchableComboBox(QComboBox):
     def __init__(self, parent=None):
@@ -19,7 +20,9 @@ class SearchableComboBox(QComboBox):
     def filter_items(self, text):
         self.clear()
         if text:
-            filtered_items = [item for item in self.original_items if text.lower() in item.lower()]
+            filtered_items = [
+                item for item in self.original_items if text.lower() in item.lower()
+            ]
             super().addItems(filtered_items)
         else:
             super().addItems(self.original_items)

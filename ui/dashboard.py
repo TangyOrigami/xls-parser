@@ -1,9 +1,6 @@
-from PyQt6.QtWidgets import (
-    QWidget, QPushButton,
-    QVBoxLayout, QLabel
-)
-
+import pyqtgraph as pg
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 
 from util.logger import CLogger
 
@@ -11,23 +8,28 @@ logger = CLogger().get_logger()
 
 
 class Dashboard(QWidget):
-    '''
-        PyQt6 Widget that will display a breakdown of a specific users'
-        hours for the pay period.
-    '''
+    """
+    PyQt6 Widget that will display a breakdown of a specific users'
+    hours for the pay period.
+    """
 
-    def __init__(self, BUILD, DB):
+    def __init__(self, BUILD):
         super().__init__()
-        self.DB = DB
 
         if BUILD == "DEBUG":
             logger.info("Dashboard: %s", BUILD)
 
+        self.plot_widget = pg.PlotWidget()
+
+        x = [1, 2, 3, 4, 5]
+        y = [6, 7, 2, 4, 5]
+
+        self.plot_widget.plot(x, y, pen="r")
+
         # Title Label
         self.title_label = QLabel("Dashboard", self)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setStyleSheet(
-            "font-size: 20px; padding: 10px;")
+        self.title_label.setStyleSheet("font-size: 20px; padding: 10px;")
 
         # Test Button
         self.count = 0
@@ -37,6 +39,7 @@ class Dashboard(QWidget):
         middle_layout = QVBoxLayout()
         middle_layout.addWidget(self.title_label)
         middle_layout.addWidget(self.button)
+        middle_layout.addWidget(self.plot_widget)
 
         # Main Layout
         main_layout = QVBoxLayout(self)

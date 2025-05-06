@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Time Sheet App")
 
-        self.tab_menu = TabMenu(BUILD, DB)
+        self.tab_menu = TabMenu(BUILD)
 
         # Menu
         open_button = QAction("Open", self)
@@ -96,7 +96,7 @@ class MainWindow(QMainWindow):
     def save_as_button_action(self, s):
         print("save as", s)
 
-    def app_setup(self, BUILD, DB):
+    def app_setup(self, BUILD: str, DB: str):
         db = DBInterface(DB)
 
         db.initialize_db(BUILD)

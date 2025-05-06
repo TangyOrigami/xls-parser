@@ -1,36 +1,26 @@
 import re
 from datetime import datetime, timedelta
 
+import pyqtgraph as pg
 from PyQt6.QtCore import QSortFilterProxyModel, QStringListModel, Qt
 from PyQt6.QtWidgets import (QComboBox, QCompleter, QFileDialog, QHBoxLayout,
                              QLabel, QPushButton, QTableWidget,
                              QTableWidgetItem, QVBoxLayout, QWidget)
 
-from util.db import DBInterface
 from util.logger import CLogger
+from util.pay_period_manager import PayPeriodManager
 from util.processor import Processor
 
 log = CLogger().get_logger()
 
 
 class TableWidget(QWidget):
-    """
-    PyQt6 Widget that handles the file upload and displays
-    the data into a table.
-    """
-
-    def __init__(self, BUILD: str, DB: str):
+    def __init__(self, BUILD: str):
         super().__init__()
         self.setAcceptDrops(True)
 
-        if BUILD == "DEBUG":
-            log.info("Table Widget: %s", BUILD)
-
-        self.DB = DB
         self.BUILD = BUILD
-
-        self.emp_id = None
-        self.pp_id = None
+        self.pp_manager = PayPeriodManager(BUILD)
 
         self.title_label = QLabel("Pay Period", self)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -44,7 +34,7 @@ class TableWidget(QWidget):
         self.employee.setEditable(True)
         self.employee.currentTextChanged.connect(self.employee_choice)
 
-        self.refresh = QPushButton(text="Refresh")
+        self.refresh = QPushButton("Refresh")
         self.refresh.clicked.connect(self.refresh_choice)
 
         self.info_section = QHBoxLayout()
@@ -59,6 +49,12 @@ class TableWidget(QWidget):
         self.main_table.setStyleSheet("border: 1px solid gray;")
         self.main_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
+        self.plot_widget = pg.PlotWidget()
+
+        self.middle_widgets = QHBoxLayout()
+        self.middle_widgets.addWidget(self.main_table)
+        self.middle_widgets.addWidget(self.plot_widget)
+
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -66,14 +62,13 @@ class TableWidget(QWidget):
         top_layout.addWidget(self.title_label)
         top_layout.addLayout(self.info_section)
 
-        bottom_layout = QVBoxLayout()
-        bottom_layout.addWidget(self.main_table)
-        bottom_layout.addWidget(self.status_label)
+        middle_layout = QVBoxLayout()
+        middle_layout.addLayout(self.middle_widgets)
+        middle_layout.addWidget(self.status_label)
 
         main_layout = QVBoxLayout(self)
         main_layout.addLayout(top_layout)
-        main_layout.addLayout(bottom_layout)
-
+        main_layout.addLayout(middle_layout)
         self.setLayout(main_layout)
 
         self.ppd_filler()
@@ -93,7 +88,7 @@ class TableWidget(QWidget):
             self, "Select Excel File", "", "Excel Files (*.xls)"
         )
         if file_path:
-            self.process_file(file_path, self.BUILD)
+            self.process_file(file_path)
 
     def refresh_choice(self):
         self.ppd.clear()
@@ -102,12 +97,14 @@ class TableWidget(QWidget):
         self.update()
 
     def ppd_filler(self):
-        db = DBInterface(self.DB)
-        dates = db._read_pay_period_dates(self.BUILD)
-        if dates is not None:
+        try:
+            dates = self.pp_manager.get_pay_period_dates()
             for d in dates:
-                self.ppd.addItem(d[0])
-        self.make_combo_searchable(self.ppd)
+                self.ppd.addItem(d)
+            self.make_combo_searchable(self.ppd)
+        except Exception as e:
+            log.error("Failed to load pay period dates: %s", str(e))
+            self.status_label.setText("Failed to load pay period dates.")
 
     def ppd_choice(self, date: str):
         self.selected_date = date
@@ -116,90 +113,89 @@ class TableWidget(QWidget):
         self.selected_employee = self.employee.currentText()
 
     def employee_filler(self, date: str):
-        db = DBInterface(self.DB)
-        pp_ids = db._read_pay_period_ids(BUILD=self.BUILD, args=date)
-        emp_ids = []
+        if date == "" or date is None:
+            date = self.pp_manager.get_default_date()
 
-        if pp_ids is not None:
-            for pp_id in pp_ids:
-                emp_ids.append(db._read_employee_ids(BUILD=self.BUILD, args=pp_id)[0])
-
-        for emp_id in emp_ids:
-            emp_name = db._read_employee_name(BUILD=self.BUILD, args=emp_id)[0]
-            emp_name = " ".join(" ".join(emp_name).split())
-            self.employee.addItem(emp_name)
-
-        self.employee.update()
-        self.make_combo_searchable(self.employee)
+        try:
+            names = self.pp_manager.get_employee_names_by_date(date)
+            for name in names:
+                self.employee.addItem(name)
+            self.employee.update()
+            self.make_combo_searchable(self.employee)
+        except Exception as e:
+            log.error("Failed to load employees: %s", str(e))
+            self.status_label.setText("Failed to load employee list.")
 
     def employee_choice(self, employee: str):
-        valid_entries = [
-            self.employee.itemText(i) for i in range(self.employee.count())
-        ]
-        if employee not in valid_entries:
-            self.status_label.setText("Invalid employee name.")
-            return
-
-        sanitized_employee = self.__sanitize_name_for_db(employee)
-
-        if self.selected_date != "":
-            self.populate_main(
-                DB=self.DB,
-                BUILD=self.BUILD,
-                employee=sanitized_employee,
-                date=(self.selected_date,),
-            )
-
-    def process_file(self, file_path, BUILD):
-        p = Processor(BUILD, self.DB)
-        p.extract_data(file_path, BUILD)
-        now = datetime.now().time()
-        self.status_label.setText(
-            f"File successfully processed {now.strftime('%I:%M:%S')}"
-        )
-
-    def populate_main(self, DB: str, BUILD: str, employee: tuple, date: tuple):
-        db = DBInterface(DB)
-        emp_id = db._read_employee_id(BUILD=BUILD, args=employee)
-        log.error("emp_id: %s", emp_id)
-
-        if not emp_id:
-            pp_id = db._read_pay_period_id_by_date(BUILD=BUILD, args=date)[0]
-            work_entries = db._read_work_entries(BUILD=BUILD, args=pp_id)
+        log.info("employee_choice: %s", employee)
+        if employee == "" or employee is None:
+            employee = self.pp_manager.get_default_employee()
+            if self.selected_date:
+                self.populate_main(employee=employee, date=self.selected_date)
         else:
-            pp_id = str(
-                db._read_pay_period_id(BUILD=BUILD, args=emp_id[0] + date)[0][0]
-            )
-            work_entries = list(db._read_work_entries(BUILD=BUILD, args=pp_id))
+            sanitized = self.__sanitize_name_for_db(employee)
+            if self.selected_date:
+                self.populate_main(employee=sanitized, date=self.selected_date)
 
-        self.main_table.clearContents()
+    def process_file(self, file_path):
+        try:
+            Processor().extract_data(file_path, self.BUILD)
+            now = datetime.now().strftime("%I:%M:%S")
+            self.status_label.setText(f"File successfully processed {now}")
+        except Exception as e:
+            log.error("Failed to process file: %s", str(e))
+            self.status_label.setText("Failed to process file.")
 
-        if self.selected_date == "":
-            self.selected_date = str(db._default_date(BUILD)[0][0])
+    def populate_main(self, employee: tuple, date: str):
+        try:
+            emp_id = self.pp_manager.get_employee_id(employee)
+            pp_id = self.pp_manager.get_pay_period_id(emp_id, date)
+            work_entries = self.pp_manager.get_work_entries(pp_id)
 
-        date = datetime.strptime(self.selected_date, "%Y-%m-%d").date()
+            self.main_table.clearContents()
 
-        for i in range(14):
-            curr_date = date + timedelta(i)
-            self.__add_cell_value(BUILD=BUILD, row_id=i, col_id=0, value=curr_date)
+            if not date:
+                date = self.pp_manager.get_default_date()
+            date_obj = datetime.strptime(date, "%Y-%m-%d").date()
 
-            if work_entries:
-                for x, j in enumerate(work_entries):
-                    table_date = self.main_table.item(i, 0).text()
-                    if table_date == j[0]:
-                        self.__add_cell_value(
-                            BUILD=BUILD, row_id=i, col_id=1, value=j[1]
-                        )
+            dates = []
+            hours = []
+
+            for i in range(14):
+                curr_date = date_obj + timedelta(i)
+                self.__add_cell_value(i, 0, curr_date)
+                dates.append(curr_date)
+
+                for x, entry in enumerate(work_entries):
+                    if self.main_table.item(i, 0).text() == entry[0]:
+                        hours.append(entry[1])
+                        self.__add_cell_value(i, 1, entry[1])
                         work_entries.pop(x)
+                        log.info("YES HOURS")
+                        break
+                    else:
+                        log.info("NO HOURS")
+                        hours.append(0)
                         break
 
-    def __add_cell_value(self, row_id, col_id, value, BUILD):
+            x = [i for i in range(len(hours))]
+            log.info("%s", len(hours))
+            self.populate_graph(x=x, y=hours)
+
+        except Exception as e:
+            log.error("Failed to populate table: %s", str(e))
+            self.status_label.setText("Error populating timesheet data.")
+
+    def populate_graph(self, x: list, y: list):
+        self.plot_widget.clear()
+        self.plot_widget.plot(x, y, pen="r")
+
+    def __add_cell_value(self, row: int, col: int, value):
         try:
             item = QTableWidgetItem(str(value))
-            self.main_table.setItem(row_id, col_id, item)
+            self.main_table.setItem(row, col, item)
         except Exception as e:
-            log.error(e)
-            assert e.with_traceback
+            log.error("Failed to set cell (%d, %d): %s", row, col, str(e))
 
     def __sanitize_name_for_db(self, employee: str):
         name = employee.split(" ")

@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from util.db import DBInterface
 from util.logger import CLogger
 
@@ -6,17 +7,18 @@ log = CLogger().get_logger()
 
 
 class Comments:
-    def __init__(self,
-                 pay_period_id: int,
-                 employee_id: int,
-                 date: datetime,
-                 punch_in_comment: str,
-                 punch_out_comment: str,
-                 special_pay_comment: str,
-                 BUILD: str,
-                 DB: str):
+    def __init__(
+        self,
+        pay_period_id: int,
+        employee_id: int,
+        date: datetime,
+        punch_in_comment: str,
+        punch_out_comment: str,
+        special_pay_comment: str,
+        BUILD: str,
+    ):
 
-        db = DBInterface(DB)
+        db = DBInterface()
 
         args = (
             pay_period_id,
@@ -24,13 +26,12 @@ class Comments:
             date,
             punch_in_comment,
             punch_out_comment,
-            special_pay_comment
+            special_pay_comment,
         )
 
         self.__save_comment(BUILD=BUILD, db=db, args=args)
 
-        self.comment_id = self.__get_comment_id(
-            BUILD=BUILD, db=db, args=args)
+        self.comment_id = self.__get_comment_id(BUILD=BUILD, db=db, args=args)
 
         self.date = date
         self.pay_period_id = pay_period_id

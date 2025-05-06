@@ -1,33 +1,32 @@
 import re
 from datetime import datetime, timedelta
-from util.db import DBInterface
-from util.logger import CLogger
+
 from structs.work_entry import WorkEntry
+from util.logger import CLogger
 
 log = CLogger().get_logger()
 
 
 class WorkEntryWorker:
-    '''
-        Worker with an interface to handle Work Entries.
-    '''
+    """
+    Worker with an interface to handle Work Entries.
+    """
 
-    def __init__(self, pay_period_id: int, report: list,
-                 start_date: datetime, BUILD: str, DB: str):
-        '''
-            Worker to handle Work Entries.
-        '''
-        self.db = DBInterface(DB)
-
+    def __init__(
+        self, pay_period_id: int, report: list, start_date: datetime, BUILD: str
+    ):
+        """
+        Worker to handle Work Entries.
+        """
         self.pay_period_id = pay_period_id
         self.report = report
         self.start_date = start_date
         self.end_date = start_date + timedelta(days=14)
 
     def __extract_hrs(self) -> [int, ...]:
-        '''
-            Returns the Hours that were clocked in by date.
-        '''
+        """
+        Returns the Hours that were clocked in by date.
+        """
         hours = list()
         for i in range(len(self.report)):
             if re.search("[0-9]", self.report[i][0]) is not None:
@@ -35,22 +34,22 @@ class WorkEntryWorker:
         return hours
 
     def __extract_report_dates(self) -> [datetime.date, ...]:
-        '''
-            Returns the Dates where hours were clocked in.
-        '''
+        """
+        Returns the Dates where hours were clocked in.
+        """
         dates = list()
         for i in range(len(self.report)):
             if re.search("[0-9]", self.report[i][0]) is not None:
-                curr_date = self.report[i][0].split(
-                    " ", 1)[1] + "/"+str(self.start_date.year)
-                dates.append(datetime.strptime(
-                    curr_date, "%m/%d/%Y").date())
+                curr_date = (
+                    self.report[i][0].split(" ", 1)[1] + "/" + str(self.start_date.year)
+                )
+                dates.append(datetime.strptime(curr_date, "%m/%d/%Y").date())
         return dates
 
     def __weekday_filter(self) -> [datetime, ...]:
-        '''
-            Returns a list of the weekday dates.
-        '''
+        """
+        Returns a list of the weekday dates.
+        """
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         filtered_dates = []
 
@@ -61,9 +60,9 @@ class WorkEntryWorker:
         return filtered_dates
 
     def __weekend_filter(self) -> [datetime, ...]:
-        '''
-            Returns a list of the weekend dates.
-        '''
+        """
+        Returns a list of the weekend dates.
+        """
         days = ["Saturday", "Sunday"]
         filtered_dates = []
 
@@ -74,24 +73,26 @@ class WorkEntryWorker:
         return filtered_dates
 
     def __date_name(self, dates) -> [str, ...]:
-        '''
-            Returns the days of the week that dates.
-        '''
+        """
+        Returns the days of the week that dates.
+        """
         date_names = [i.strftime("%A") for i in dates]
 
         return date_names
 
-    def extract_hrs_wrked(self) -> {datetime.date: int, }:
-        '''
-            Returns a Dictionary with the dates of the pay period
-            and the hours that were logged per day.
+    def extract_hrs_wrked(
+        self,
+    ) -> {datetime.date: int,}:
+        """
+        Returns a Dictionary with the dates of the pay period
+        and the hours that were logged per day.
 
-            The hash map follows this format: { Date : Hours }
+        The hash map follows this format: { Date : Hours }
 
-            Example:
+        Example:
 
-            {datetime.date(2025-1-30): 8.0, datetime.date(2025-1-31): 8.5, ...}
-        '''
+        {datetime.date(2025-1-30): 8.0, datetime.date(2025-1-31): 8.5, ...}
+        """
 
         weekHrs = dict()
         dates = self.__extract_report_dates()
@@ -102,10 +103,10 @@ class WorkEntryWorker:
 
         return weekHrs
 
-    def extract_work_entries(self, BUILD: str, DB: str) -> {datetime.date: int}:
-        '''
-            Returns a list of WorkEntry objects for a given pay period.
-        '''
+    def extract_work_entries(self, BUILD: str) -> {datetime.date: int}:
+        """
+        Returns a list of WorkEntry objects for a given pay period.
+        """
         raw_hrs = self.extract_hrs_wrked()
         counter = 0
         tracker = []
@@ -120,22 +121,23 @@ class WorkEntryWorker:
                     work_date=i,
                     hours=raw_hrs[i],
                     BUILD=BUILD,
-                    DB=DB
                 )
                 tracker.append(work_entry)
 
         return tracker
 
-    def extract_weekday_hrs(self) -> {datetime.date: int, }:
-        '''
-            Returns Pay Period weekday (Monday-Friday) hours.
+    def extract_weekday_hrs(
+        self,
+    ) -> {datetime.date: int,}:
+        """
+        Returns Pay Period weekday (Monday-Friday) hours.
 
-            The hash map follows this format: { Date : Hours }
+        The hash map follows this format: { Date : Hours }
 
-            Example:
+        Example:
 
-            {datetime.date(2025-1-30): 8.0, datetime.date(2025-1-31): 8.5, ...}
-        '''
+        {datetime.date(2025-1-30): 8.0, datetime.date(2025-1-31): 8.5, ...}
+        """
 
         week_day_dates = {}
         all_dates = self.extract_hrs_wrked()
@@ -147,16 +149,18 @@ class WorkEntryWorker:
 
         return week_day_dates
 
-    def extract_weekend_hrs(self) -> {datetime.date: int, }:
-        '''
-            Returns Pay Period weekend (Sat-Sun) hours.
+    def extract_weekend_hrs(
+        self,
+    ) -> {datetime.date: int,}:
+        """
+        Returns Pay Period weekend (Sat-Sun) hours.
 
-            The hash map follows this format: { Date : Hours }
+        The hash map follows this format: { Date : Hours }
 
-            Example:
+        Example:
 
-            {datetime.date(2025-1-30): 8.0, datetime.date(2025-1-31): 8.5, ...}
-        '''
+        {datetime.date(2025-1-30): 8.0, datetime.date(2025-1-31): 8.5, ...}
+        """
 
         week_end_dates = {}
         all_dates = self.extract_hrs_wrked()
@@ -169,9 +173,9 @@ class WorkEntryWorker:
         return week_end_dates
 
     def extract_ot_logged(self) -> {datetime.date: int}:
-        '''
-            Returns Over Time that was logged.
-        '''
+        """
+        Returns Over Time that was logged.
+        """
         total = sum(self.extract_hrs_wrked().values())
 
         if total < 80.0:
@@ -180,7 +184,7 @@ class WorkEntryWorker:
         otEarned = {}
 
         for i in self.extract_weekday_hrs().keys():
-            curr = self.extract_weekday_hrs()[i]-8.0
+            curr = self.extract_weekday_hrs()[i] - 8.0
             otEarned.update({i: curr})
 
         return otEarned
@@ -205,5 +209,14 @@ class WorkEntryWorker:
         week_end = f"WE: \t{list(self.extract_weekend_hrs())}\n"
         over_time = f"OT: \t{list(self.extract_ot_logged())}\n"
 
-        log.info(pay_period_id + date + pay_period + total +
-                 days + hours + week_day + week_end + over_time)
+        log.info(
+            pay_period_id
+            + date
+            + pay_period
+            + total
+            + days
+            + hours
+            + week_day
+            + week_end
+            + over_time
+        )
