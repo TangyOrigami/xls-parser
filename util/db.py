@@ -251,8 +251,6 @@ class DBInterface:
     ) -> Union[list[tuple], r]:
         self.__ensure_connection()
 
-        log.info("SQL: %s | ARGS: %s", sql, args)
-
         try:
             self.cursor.execute(sql, args or ())
             results = self.cursor.fetchall()

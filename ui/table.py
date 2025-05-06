@@ -3,9 +3,19 @@ from datetime import datetime, timedelta
 
 import pyqtgraph as pg
 from PyQt6.QtCore import QSortFilterProxyModel, QStringListModel, Qt
-from PyQt6.QtWidgets import (QComboBox, QCompleter, QFileDialog, QHBoxLayout,
-                             QLabel, QPushButton, QTableWidget,
-                             QTableWidgetItem, QVBoxLayout, QWidget)
+from PyQt6.QtGui import QColor, QFont, QPen
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QCompleter,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from util.logger import CLogger
 from util.pay_period_manager import PayPeriodManager
@@ -164,29 +174,28 @@ class TableWidget(QWidget):
             for i in range(14):
                 curr_date = date_obj + timedelta(i)
                 self.__add_cell_value(i, 0, curr_date)
-                dates.append(curr_date)
+                dates.append(str(curr_date))
 
                 for x, entry in enumerate(work_entries):
                     if self.main_table.item(i, 0).text() == entry[0]:
                         hours.append(entry[1])
                         self.__add_cell_value(i, 1, entry[1])
                         work_entries.pop(x)
-                        log.info("YES HOURS")
                         break
                     else:
-                        log.info("NO HOURS")
+                        self.__add_cell_value(i, 1, 0)
                         hours.append(0)
                         break
 
-            x = [i for i in range(len(hours))]
-            log.info("%s", len(hours))
-            self.populate_graph(x=x, y=hours)
+            x = [i for i in range(1, len(hours) + 1)]
+            ticks = list(zip(x, dates))
+            self.populate_graph(x=x, y=hours, ticks=ticks)
 
         except Exception as e:
             log.error("Failed to populate table: %s", str(e))
             self.status_label.setText("Error populating timesheet data.")
 
-    def populate_graph(self, x: list, y: list):
+    def populate_graph(self, x: list, y: list, ticks: tuple):
         self.plot_widget.clear()
         self.plot_widget.plot(x, y, pen="r")
 
