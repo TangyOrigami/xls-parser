@@ -19,7 +19,7 @@ def DB(tmp_path):
     db_file = tmp_path / "test.db"
     dbi = DBInterface(str(db_file))
     dbi.connect(str(db_file))
-    dbi.initialize_db("TEST")
+    dbi.initialize_db(BUILD="TEST")
     yield dbi
     DBInterface.reset_instance()
 
@@ -31,36 +31,36 @@ def DB(tmp_path):
 
 def _create_test_employee(db, first="Unit", middle="T", last="User", group="QA"):
     args = (first, middle, last, group)
-    assert db.save_employee("TEST", args) == r.SUCCESS
+    assert db.save_employee(BUILD="TEST", args=args) == r.SUCCESS
     return args
 
 
 def _get_employee_id(db, args):
-    result = db._read_employee_id("TEST", args[:3])
-    assert result != r.ERROR and result
+    result = db._read_employee_id(BUILD="TEST", args=args[:3])
+    assert result != r.ERROR and result is not None
     return result[0][0]
 
 
 def _create_test_pay_period(db, employee_id):
     args = (employee_id, "2024-01-01", "2024-01-14")
-    assert db.save_pay_period("TEST", args) == r.SUCCESS
+    assert db.save_pay_period(BUILD="TEST", args=args) == r.SUCCESS
     return args
 
 
 def _get_pay_period_id(db, employee_id):
-    result = db._read_pay_period_id("TEST", (employee_id, "2024-01-01"))
+    result = db._read_pay_period_id(BUILD="TEST", args=(employee_id, "2024-01-01"))
     assert result != r.ERROR and result
     return result[0][0]
 
 
 def _create_test_work_entry(db, pay_period_id):
     args = (pay_period_id, "2024-01-03", 8.0)
-    assert db.save_work_entry("TEST", args) == r.SUCCESS
+    assert db.save_work_entry(BUILD="TEST", args=args) == r.SUCCESS
     return args
 
 
 def _delete_test_employee(db, args):
-    assert db.delete_employee("TEST", args) == r.SUCCESS
+    assert db.delete_employee(BUILD="TEST", args=args) == r.SUCCESS
 
 
 # ======================================
@@ -84,9 +84,9 @@ def _employee_cycle_test(
     result = db.save_employee(BUILD="TEST", args=args)
     if expect_success:
         assert result == r.SUCCESS
-        assert db._read_employee_id("TEST", args[:3])
+        assert db._read_employee_id(BUILD="TEST", args=args[:3])
     else:
-        assert not db._read_employee_id("TEST", args[:3])
+        assert not db._read_employee_id(BUILD="TEST", args=args[:3])
     _delete_test_employee(db, args)
 
 
@@ -121,12 +121,12 @@ def test_pay_period_cycle(DB):
     emp_id = _get_employee_id(DB, emp_args)
     _create_test_pay_period(DB, emp_id)
 
-    result = DB._read_pay_period_id("TEST", (emp_id, "2024-01-01"))
-    assert result != r.ERROR and result
-    result = DB._read_pay_period_id_by_date("TEST", ("2024-01-01",))
-    assert result != r.ERROR and result
-    result = DB._read_pay_period_ids("TEST", ("2024-01-01",))
-    assert result != r.ERROR and result
+    result = DB._read_pay_period_id(BUILD="TEST", args=(emp_id, "2024-01-01"))
+    assert result != r.ERROR and result is not None
+    result = DB._read_pay_period_id_by_date(BUILD="TEST", args=("2024-01-01",))
+    assert result != r.ERROR and result is not None
+    result = DB._read_pay_period_ids(BUILD="TEST", args=("2024-01-01",))
+    assert result != r.ERROR and result is not None
 
     _delete_test_employee(DB, emp_args)
 
@@ -143,9 +143,9 @@ def test_work_entry_cycle(DB):
     pp_id = _get_pay_period_id(DB, emp_id)
 
     args = _create_test_work_entry(DB, pp_id)
-    result = DB._read_work_entry_id("TEST", args)
+    result = DB._read_work_entry_id(BUILD="TEST", args=args)
     assert result != r.ERROR and result
-    result = DB._read_work_entries("TEST", (pp_id,))
+    result = DB._read_work_entries(BUILD="TEST", args=(pp_id,))
     assert result != r.ERROR and result
 
     _delete_test_employee(DB, emp_args)
@@ -163,8 +163,8 @@ def test_comment_cycle(DB):
     pp_id = _get_pay_period_id(DB, emp_id)
 
     comment_args = (pp_id, emp_id, "2024-01-03", "late", "early", "bonus")
-    assert DB.save_comment("TEST", comment_args) == r.SUCCESS
-    result = DB._read_comment_id("TEST", (pp_id, emp_id, "2024-01-03"))
+    assert DB.save_comment(BUILD="TEST", args=comment_args) == r.SUCCESS
+    result = DB._read_comment_id(BUILD="TEST", args=(pp_id, emp_id, "2024-01-03"))
     assert result != r.ERROR and result
 
     _delete_test_employee(DB, emp_args)
@@ -178,7 +178,7 @@ def test_comment_cycle(DB):
 def test_read_employee_name_by_id(DB):
     emp_args = _create_test_employee(DB)
     emp_id = _get_employee_id(DB, emp_args)
-    result = DB._read_employee_name("TEST", (emp_id,))
+    result = DB._read_employee_name(BUILD="TEST", args=(emp_id,))
     assert result != r.ERROR and result[0][:3] == emp_args[:3]
     _delete_test_employee(DB, emp_args)
 
@@ -188,7 +188,7 @@ def test_read_employee_ids_from_pay_period(DB):
     emp_id = _get_employee_id(DB, emp_args)
     _create_test_pay_period(DB, emp_id)
     pp_id = _get_pay_period_id(DB, emp_id)
-    result = DB._read_employee_ids("TEST", (pp_id,))
+    result = DB._read_employee_ids(BUILD="TEST", args=(pp_id,))
     assert result != r.ERROR and result[0][0] == emp_id
     _delete_test_employee(DB, emp_args)
 
@@ -202,9 +202,9 @@ def test_default_employee_and_date(DB):
     emp_args = _create_test_employee(DB)
     emp_id = _get_employee_id(DB, emp_args)
     _create_test_pay_period(DB, emp_id)
-    result = DB._default_employee("TEST")
+    result = DB._default_employee(BUILD="TEST")
     assert result != r.ERROR and result
-    result = DB._default_date("TEST")
+    result = DB._default_date(BUILD="TEST")
     assert result != r.ERROR and result
     _delete_test_employee(DB, emp_args)
 

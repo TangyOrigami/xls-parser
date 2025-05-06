@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 
 import pyqtgraph as pg
 from PyQt6.QtCore import QSortFilterProxyModel, QStringListModel, Qt
-from PyQt6.QtGui import QColor, QFont, QPen
 from PyQt6.QtWidgets import (
+    QApplication,
     QComboBox,
     QCompleter,
     QFileDialog,
@@ -98,6 +98,12 @@ class TableWidget(QWidget):
             self, "Select Excel File", "", "Excel Files (*.xls)"
         )
         if file_path:
+            now = datetime.now().strftime("%I:%M:%S")
+            processing = f"Started processing file at {now}"
+
+            self.status_label.setText(processing)
+            QApplication.processEvents()
+
             self.process_file(file_path)
 
     def refresh_choice(self):
@@ -137,7 +143,6 @@ class TableWidget(QWidget):
             self.status_label.setText("Failed to load employee list.")
 
     def employee_choice(self, employee: str):
-        log.info("employee_choice: %s", employee)
         if employee == "" or employee is None:
             employee = self.pp_manager.get_default_employee()
             if self.selected_date:
@@ -150,8 +155,12 @@ class TableWidget(QWidget):
     def process_file(self, file_path):
         try:
             Processor().extract_data(file_path, self.BUILD)
+
             now = datetime.now().strftime("%I:%M:%S")
-            self.status_label.setText(f"File successfully processed {now}")
+            processed = f"File successfully processed at {now}"
+
+            self.status_label.setText(processed)
+
         except Exception as e:
             log.error("Failed to process file: %s", str(e))
             self.status_label.setText("Failed to process file.")

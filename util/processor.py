@@ -104,12 +104,6 @@ class Processor:
                     BUILD=BUILD,
                 )
 
-            if BUILD == "DEBUG":
-                log.info(
-                    "Work Entries: %s",
-                    c_work_entries.extract_work_entries(BUILD=BUILD),
-                )
-
             users.append(c_work_entries)
 
         return users
@@ -156,8 +150,6 @@ class Processor:
             else:
                 name["Last Name"].append(i)
                 name["Last Name"].reverse()
-
-        log.info("%s", name)
 
         return name
 
