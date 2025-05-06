@@ -8,6 +8,11 @@ from util.logger import CLogger
 
 log = CLogger().get_logger()
 
+# TODO:
+# 1. Create Dump file
+# 2. Zip Dump file
+# 3. Re-create database from Dump file
+
 
 class DBInterface:
     _instance = None
@@ -150,7 +155,8 @@ class DBInterface:
     def delete_employee(self, args: tuple, BUILD: str = "TEST") -> r:
         sql = """
         DELETE FROM Employee
-        WHERE FirstName=? AND MiddleName=? AND LastName=? AND EmployeeGroup=?;
+        WHERE
+        FirstName=? AND MiddleName=? AND LastName=? AND EmployeeGroup=?;
         """
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
@@ -159,68 +165,114 @@ class DBInterface:
     def _read_employee_id(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT EmployeeID FROM Employee WHERE FirstName=? AND MiddleName=? AND LastName=?;"
+        sql = """
+        SELECT EmployeeID
+        FROM Employee
+        WHERE FirstName=? AND MiddleName=? AND LastName=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_employee_name(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT FirstName, MiddleName, LastName FROM Employee WHERE EmployeeID=?;"
+        sql = """
+        SELECT FirstName, MiddleName, LastName
+        FROM Employee
+        WHERE EmployeeID=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_pay_period_id(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT PayPeriodID FROM PayPeriod WHERE EmployeeID=? AND StartDate=?;"
+        sql = """
+            SELECT PayPeriodID
+            FROM PayPeriod
+            WHERE EmployeeID=? AND StartDate=?;
+            """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_pay_period_id_by_date(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT PayPeriodID FROM PayPeriod WHERE StartDate=?;"
+        sql = """
+        SELECT PayPeriodID
+        FROM PayPeriod
+        WHERE StartDate=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_work_entry_id(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT WorkEntryID FROM WorkEntry WHERE PayPeriodID=? AND WorkDate=? AND Hours=?;"
+        sql = """
+        SELECT WorkEntryID
+        FROM WorkEntry
+        WHERE PayPeriodID=? AND WorkDate=? AND Hours=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_comment_id(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT CommentID FROM PayPeriodComment WHERE PayPeriodID=? AND EmployeeID=? AND WorkDate=?"
+        sql = """
+        SELECT CommentID
+        FROM PayPeriodComment
+        WHERE PayPeriodID=? AND EmployeeID=? AND WorkDate=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_pay_period_ids(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT PayPeriodID FROM PayPeriod WHERE StartDate=?;"
+        sql = """
+        SELECT PayPeriodID
+        FROM PayPeriod
+        WHERE StartDate=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_employee_ids(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT EmployeeID FROM PayPeriod WHERE PayPeriodID=?;"
+        sql = """
+        SELECT EmployeeID
+        FROM PayPeriod
+        WHERE PayPeriodID=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_work_entries(
         self, args: tuple, BUILD: str = "TEST"
     ) -> Union[list[tuple], r]:
-        sql = "SELECT WorkDate, Hours FROM WorkEntry WHERE PayPeriodID=?;"
+        sql = """
+        SELECT WorkDate, Hours
+        FROM WorkEntry
+        WHERE PayPeriodID=?;
+        """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
     def _read_pay_period_dates(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
-        sql = "SELECT DISTINCT StartDate FROM PayPeriod WHERE EXISTS (SELECT DISTINCT StartDate FROM PayPeriod);"
+        sql = """
+        SELECT DISTINCT StartDate
+        FROM PayPeriod
+        WHERE EXISTS (SELECT DISTINCT StartDate FROM PayPeriod);
+        """
 
         return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
 
     def _default_employee(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
-        sql = "SELECT FirstName, MiddleName, LastName FROM Employee ORDER BY ROWID ASC LIMIT 1;"
+        sql = """
+        SELECT FirstName, MiddleName, LastName
+        FROM Employee ORDER BY ROWID ASC LIMIT 1;
+        """
         return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
 
     def _default_date(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
-        sql = "SELECT DISTINCT StartDate FROM PayPeriod ORDER BY StartDate LIMIT 1;"
+        sql = """
+        SELECT DISTINCT StartDate
+        FROM PayPeriod ORDER BY StartDate LIMIT 1;
+        """
         return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
 
     def __run_sql(self, sql: str, args: tuple, BUILD: str = "TEST") -> r:

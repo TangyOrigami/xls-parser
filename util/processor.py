@@ -144,8 +144,6 @@ class Processor:
             BUILD=BUILD,
         )
 
-        # TODO:
-        # Use this to rewrite `__sanitize_name_for_db`
         split_name = name[0].split(" ")
         sanitized_name = [i.replace(",", "") for i in split_name]
         name = {"First Name": "", "Middle Name": "", "Last Name": []}

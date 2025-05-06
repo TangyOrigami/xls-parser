@@ -68,6 +68,14 @@ class MainWindow(QMainWindow):
         save_as_button.setStatusTip("Save current view as")
         save_as_button.triggered.connect(self.save_as_button_action)
 
+        export_as_button = QAction("Export as", self)
+        export_as_button.setStatusTip("Export database")
+        export_as_button.triggered.connect(self.export_as_button_action)
+
+        import_button = QAction("Import", self)
+        import_button.setStatusTip("Import database")
+        import_button.triggered.connect(self.import_button_action)
+
         close_button = QAction("Close", self)
         close_button.setStatusTip("Close current view")
         close_button.triggered.connect(self.close)
@@ -81,6 +89,10 @@ class MainWindow(QMainWindow):
         file_submenu.addAction(save_as_button)
         file_menu.addSeparator()
 
+        file_menu.addAction(export_as_button)
+        file_menu.addSeparator()
+        file_menu.addAction(import_button)
+        file_menu.addSeparator()
         file_menu.addAction(open_button)
         file_menu.addSeparator()
 
@@ -95,6 +107,19 @@ class MainWindow(QMainWindow):
 
     def save_as_button_action(self, s):
         print("save as", s)
+
+    def export_as_button_action(self, s):
+        """
+        Creates zipped dump file of the database that can be imported
+        in another instance of the application to re-create the database.
+        """
+        print("export", s)
+
+    def import_button_action(self, s):
+        """
+        Injests a dump file and re-creates the database.
+        """
+        print("import", s)
 
     def app_setup(self, BUILD: str, DB: str):
         db = DBInterface(DB)
