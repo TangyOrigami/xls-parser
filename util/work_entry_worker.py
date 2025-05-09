@@ -23,6 +23,8 @@ class WorkEntryWorker:
         self.start_date = start_date
         self.end_date = start_date + timedelta(days=14)
 
+        self.extract_work_entries(BUILD=BUILD)
+
     def __extract_hrs(self) -> [int, ...]:
         """
         Returns the Hours that were clocked in by date.

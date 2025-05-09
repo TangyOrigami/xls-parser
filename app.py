@@ -1,17 +1,19 @@
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from PyQt6.QtCore import QCommandLineOption, QCommandLineParser
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
+from structs.result import Result as r
 from ui.tabs import TabMenu
 from util.db import DBInterface
 from util.logger import CLogger
 
 load_dotenv()
-logger = CLogger().get_logger()
+log = CLogger().get_logger()
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -35,10 +37,10 @@ def args_parser(app) -> [str, str]:
     if parser.isSet(debug_option):
         BUILD = "DEBUG"
         DB = os.environ.get("DB")
-        logger.info("BUILD: " + BUILD)
+        log.info("BUILD: " + BUILD)
     else:
         BUILD = os.environ.get("BUILD")
-        logger.info("BUILD: " + BUILD)
+        log.info("BUILD: " + BUILD)
         DB = os.environ.get("DB")
 
     return [BUILD, DB]
@@ -49,7 +51,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         if BUILD == "DEBUG":
-            logger.info("Main Window: %s", BUILD)
+            log.info("Main Window: %s", BUILD)
 
         self.setWindowTitle("Time Sheet App")
 
@@ -78,7 +80,7 @@ class MainWindow(QMainWindow):
 
         close_button = QAction("Close", self)
         close_button.setStatusTip("Close current view")
-        close_button.triggered.connect(self.close)
+        close_button.triggered.connect(self.close_gracefully)
 
         menu = self.menuBar()
 
@@ -121,6 +123,32 @@ class MainWindow(QMainWindow):
         """
         print("import", s)
 
+    def close_gracefully(self):
+        """
+        Closes gracefully application once backup is generated.
+        """
+        try:
+            log.info("Creating backup...")
+            project_root = Path(__file__).resolve().parent.parent
+            target_db_path = project_root / "app.db"
+            backup_db_path = project_root / "app_backup.db"
+
+            result = DBInterface().create_backup(
+                target_db_path=target_db_path, backup_db_path=backup_db_path
+            )
+
+            if result == r.ERROR:
+                raise Exception("Failed to create backup")
+        except Exception as e:
+            log.error(
+                "Couldn't close application gracefully: %s | %s",
+                type(e).__name__,
+                e.args,
+            )
+        finally:
+            log.info("Backup Successfully Created")
+            self.close()
+
     def app_setup(self, BUILD: str, DB: str):
         db = DBInterface(DB)
 
@@ -131,7 +159,7 @@ if __name__ == "__main__":
     args = sys.argv
     app = QApplication(args)
     app.setApplicationName("Timesheet Analyzer")
-    app.setApplicationVersion("0.0.2")
+    app.setApplicationVersion("0.0.5")
     BUILD, DB = args_parser(app)
 
     window = MainWindow(BUILD, DB)
