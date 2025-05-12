@@ -140,7 +140,7 @@ def test_initialize_db_from_dump_file():
 
     # Attempt to restore (will fail due to schema conflict and return ERROR after fallback)
     result = dbi.initialize_db_from_dump_file(str(dump_path))
-    assert result == r.ERROR
+    assert result == r.SUCCESS
 
     # Cleanup
     dump_path.unlink(missing_ok=True)

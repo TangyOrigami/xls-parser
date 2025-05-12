@@ -60,7 +60,7 @@ class DBInterface:
             self.cursor = None
 
     def __init__(self, DB: str = "app.db"):
-        log.warn("CURRENT DB: %s", DB)
+        log.warning("CURRENT DB: %s", DB)
         if not hasattr(self, "DB") or self.DB is None:
             self.DB = DB
             self.connect(DB)
@@ -222,7 +222,7 @@ class DBInterface:
 
     def restore_from_backup(self, backup_db_path: Path, target_db_path: Path) -> r:
         try:
-            log.warn("BACKUP PATH: %s", backup_db_path)
+            log.warning("BACKUP PATH: %s", backup_db_path)
             if backup_db_path.exists():
                 log.warning("Attempting to restore app.db from app_backup.db")
 
