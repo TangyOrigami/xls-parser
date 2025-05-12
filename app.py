@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from PyQt6.QtCore import QCommandLineOption, QCommandLineParser
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QMainWindow
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow
 
 from structs.result import Result as r
 from ui.tabs import TabMenu
@@ -62,21 +62,13 @@ class MainWindow(QMainWindow):
         open_button.setStatusTip("Open a file")
         open_button.triggered.connect(self.tab_menu.table_widget.open_file_dialog)
 
-        save_button = QAction("Save", self)
-        save_button.setStatusTip("Save current view")
-        save_button.triggered.connect(self.save_button_action)
-
-        save_as_button = QAction("Save as", self)
-        save_as_button.setStatusTip("Save current view as")
-        save_as_button.triggered.connect(self.save_as_button_action)
-
-        export_as_button = QAction("Export as", self)
-        export_as_button.setStatusTip("Export database")
-        export_as_button.triggered.connect(self.export_as_button_action)
+        export_button = QAction("Export as", self)
+        export_button.setStatusTip("Export database")
+        export_button.triggered.connect(self.tab_menu.table_widget.export_button_action)
 
         import_button = QAction("Import", self)
         import_button.setStatusTip("Import database")
-        import_button.triggered.connect(self.import_button_action)
+        import_button.triggered.connect(self.tab_menu.table_widget.import_button_action)
 
         close_button = QAction("Close", self)
         close_button.setStatusTip("Close current view")
@@ -85,13 +77,8 @@ class MainWindow(QMainWindow):
         menu = self.menuBar()
 
         file_menu = menu.addMenu("&File")
-        file_submenu = file_menu.addMenu("Save")
-        file_submenu.addAction(save_button)
-        file_submenu.addSeparator()
-        file_submenu.addAction(save_as_button)
-        file_menu.addSeparator()
 
-        file_menu.addAction(export_as_button)
+        file_menu.addAction(export_button)
         file_menu.addSeparator()
         file_menu.addAction(import_button)
         file_menu.addSeparator()
@@ -103,19 +90,6 @@ class MainWindow(QMainWindow):
         self.app_setup(BUILD, DB)
 
         self.setCentralWidget(self.tab_menu)
-
-    def save_button_action(self, s):
-        print("save", s)
-
-    def save_as_button_action(self, s):
-        print("save as", s)
-
-    def export_as_button_action(self, s):
-        """
-        Creates zipped dump file of the database that can be imported
-        in another instance of the application to re-create the database.
-        """
-        print("export", s)
 
     def import_button_action(self, s):
         """

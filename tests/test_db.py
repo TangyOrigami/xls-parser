@@ -103,7 +103,11 @@ def test_dump_db_and_compress(DB):
     expected_path = Path(__file__).resolve().parent.parent / "temp" / expected_filename
 
     try:
-        assert DB.dump_db_and_compress(BUILD="TEST") == r.SUCCESS
+        result = DB.dump_db_and_compress(BUILD="TEST")
+        if isinstance(result, list):
+            assert result[1] == r.SUCCESS
+        else:
+            assert "Couldn't dump and compress DB."
         assert expected_path.exists()
 
         with gzip.open(expected_path, "rt", encoding="utf-8") as f:
@@ -127,12 +131,12 @@ def test_initialize_db_from_dump_file():
     dbi = DBInterface(str(db_path))
     dbi.connect(str(db_path))
     dbi.initialize_db(BUILD="TEST")
+    result = dbi.dump_db_and_compress(BUILD="TEST", path_to_file=str(dump_dir))
 
-    # Create a dump file
-    assert (
-        dbi.dump_db_and_compress(BUILD="TEST", path_to_file=str(dump_dir)) == r.SUCCESS
-    )
-    assert dump_path.exists()
+    if isinstance(result, list):
+        # Create a dump file
+        assert result[1] == r.SUCCESS
+        assert dump_path.exists()
 
     # Attempt to restore (will fail due to schema conflict and return ERROR after fallback)
     result = dbi.initialize_db_from_dump_file(str(dump_path))

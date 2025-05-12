@@ -1,4 +1,5 @@
 import gzip
+import os
 import shutil
 import sqlite3 as db
 import threading
@@ -59,6 +60,7 @@ class DBInterface:
             self.cursor = None
 
     def __init__(self, DB: str = "app.db"):
+        log.warn("CURRENT DB: %s", DB)
         if not hasattr(self, "DB") or self.DB is None:
             self.DB = DB
             self.connect(DB)
@@ -131,18 +133,20 @@ class DBInterface:
         backup_db_path = project_root / "app_backup.db"
 
         try:
+            self.__ensure_connection()
+
+            result = self.__run_sql_batch(sql_statements=sql, BUILD=BUILD)
+            if result != r.SUCCESS:
+                log.error("Failed to initialize db")
+                raise Exception("Schema initialization failed")
+
             result = self.create_backup(
                 target_db_path=target_db_path, backup_db_path=backup_db_path
             )
             if result == r.ERROR:
+                log.error("Failed to create backup")
                 raise Exception("Failed to create backup")
 
-            self.__ensure_connection()
-            result = self.__run_sql_batch(sql_statements=sql, BUILD=BUILD)
-            if result != r.SUCCESS:
-                raise Exception("Schema initialization failed")
-
-            self.dump_db_and_compress(BUILD=BUILD)
             log.info("Database schema initialized successfully.")
             return r.SUCCESS
 
@@ -165,49 +169,60 @@ class DBInterface:
             return r.ERROR
 
     def initialize_db_from_dump_file(self, path_to_file: str) -> r:
+        project_root = Path(__file__).resolve().parent.parent
+        target_db_path = project_root / "app.db"
+        backup_db_path = project_root / "app_backup.db"
+
         try:
-            dump_path = Path(path_to_file).resolve()
-            if not dump_path.exists():
-                log.error("Specified dump file does not exist: %s", dump_path)
-                return r.ERROR
+            dump_path = Path(str(path_to_file)).resolve(strict=True)
+            log.info("Found dump file: %s", dump_path)
 
-            project_root = Path(__file__).resolve().parent.parent
-            target_db_path = project_root / "app.db"
-            backup_db_path = project_root / "app_backup.db"
-
+            # Backup existing database if it exists
             if target_db_path.exists():
-                if backup_db_path.exists():
-                    backup_db_path.unlink()
-                shutil.copy2(target_db_path, backup_db_path)
-                log.info("Backed up app.db to app_backup.db")
+                try:
+                    if backup_db_path.exists():
+                        backup_db_path.unlink()
+                    shutil.copy2(target_db_path, backup_db_path)
+                    log.info("Created backup: %s", backup_db_path.name)
+                    target_db_path.unlink()
+                except Exception as backup_err:
+                    log.error(
+                        "Backup process failed: %s | %s",
+                        type(backup_err).__name__,
+                        backup_err.args,
+                    )
+                    return r.ERROR
+            else:
+                log.info("No existing database to backup. Skipping.")
 
-            with gzip.open(dump_path, "rt", encoding="utf-8") as f:
+            # Read and execute dump SQL
+            with gzip.open(dump_path, mode="rt", encoding="utf-8") as f:
                 sql_script = f.read()
 
-            if self.connection:
-                self.connection.close()
-                self.connection = None
-                self.cursor = None
-
-            self.connection = db.connect(str(target_db_path))
-            self.cursor = self.connection.cursor()
-            self.connection.execute("PRAGMA foreign_keys = ON;")
-            self.connection.set_trace_callback(True)
+            self._reconnect_to(target_db_path)
             self.connection.executescript(sql_script)
             self.connection.commit()
             self.DB = str(target_db_path)
 
-            log.info("Hot-swapped SQLite DB from dump: %s", dump_path.name)
+            log.info("Successfully initialized DB from dump: %s", dump_path.name)
             return r.SUCCESS
 
-        except Exception as e:
+        except FileNotFoundError:
+            log.error("Dump file not found: %s", path_to_file)
+
+        except (OSError, db.DatabaseError) as e:
             log.error(
-                "Failed to hot-swap DB from dump: %s | %s", type(e).__name__, e.args
+                "Failed to restore DB from dump: %s | %s", type(e).__name__, e.args
             )
-            return self.restore_from_backup(backup_db_path, target_db_path)
+
+        except Exception as e:
+            log.exception("Unexpected error during DB initialization from dump: %s", e)
+
+        return self.restore_from_backup(backup_db_path, target_db_path)
 
     def restore_from_backup(self, backup_db_path: Path, target_db_path: Path) -> r:
         try:
+            log.warn("BACKUP PATH: %s", backup_db_path)
             if backup_db_path.exists():
                 log.warning("Attempting to restore app.db from app_backup.db")
 
@@ -236,11 +251,12 @@ class DBInterface:
             )
         return r.ERROR
 
-    def dump_db_and_compress(self, BUILD: str = "TEST", path_to_file: str = "temp"):
+    def dump_db_and_compress(
+        self, BUILD: str = "TEST", path_to_file: str = "temp"
+    ) -> Union[list[str, r], r]:
         self.__ensure_connection()
 
-        project_root = Path(__file__).resolve().parent.parent
-        output_dir = project_root / path_to_file
+        output_dir = Path(path_to_file)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         today = date.today().isoformat()
@@ -250,9 +266,10 @@ class DBInterface:
         try:
             with gzip.open(output_path, "wt", encoding="utf-8") as gz_file:
                 for line in self.connection.iterdump():
+                    log.info(line)
                     gz_file.write(f"{line}\n")
 
-            return r.SUCCESS
+            return [str(output_path), r.SUCCESS]
 
         except Exception as e:
             log.error(
@@ -310,6 +327,15 @@ class DBInterface:
         PayPeriodID=?;
         """
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
+
+    def _reconnect_to(self, db_path: Path):
+        """Reconnects the database to a new target path."""
+        if self.connection:
+            self.connection.close()
+        self.connection = db.connect(str(db_path))
+        self.cursor = self.connection.cursor()
+        self.connection.execute("PRAGMA foreign_keys = ON;")
+        self.connection.set_trace_callback(True)
 
     # READ METHODS
 

@@ -1,3 +1,4 @@
+import os
 import re
 from datetime import datetime, timedelta
 
@@ -17,6 +18,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from structs.result import Result as r
+from util.db import DBInterface
 from util.logger import CLogger
 from util.pay_period_manager import PayPeriodManager
 from util.processor import Processor
@@ -82,6 +85,62 @@ class TableWidget(QWidget):
         self.setLayout(main_layout)
 
         self.ppd_filler()
+
+    def export_button_action(self):
+        """
+        Creates zipped dump file of the database that can be imported
+        in another instance of the application to re-create the database.
+        """
+        try:
+            file_path = QFileDialog.getExistingDirectory(
+                self, "Select Directory", os.getcwd()
+            )
+
+            if file_path:
+                db = DBInterface()
+                result = db.dump_db_and_compress(path_to_file=file_path)
+                if isinstance(result, list):
+                    self.status_label.setText("Exported backup to " + result[0])
+            else:
+                raise Exception("Invalid file path")
+
+        except Exception as e:
+            log.error(
+                "Error during dump and compression: %s | %s",
+                type(e).__name__,
+                e.args,
+            )
+
+    def import_button_action(self):
+        """
+        Creates zipped dump file of the database that can be imported
+        in another instance of the application to re-create the database.
+        """
+        try:
+            file_path = QFileDialog.getOpenFileName(
+                self, "Select compressed dump file", "*.sql.gz"
+            )
+
+            if file_path:
+                db = DBInterface()
+                # result = db.dump_db_and_compress(path_to_file=file_path)
+                result = db.initialize_db_from_dump_file(path_to_file=file_path[0])
+
+                if result == r.SUCCESS:
+                    self.status_label.setText("File Successfully Imported")
+
+                else:
+                    self.status_label.setText("Something went wrong")
+
+            else:
+                raise "Invalid file path"
+
+        except Exception as e:
+            log.error(
+                "Error during dump and compression: %s | %s",
+                type(e).__name__,
+                e.args,
+            )
 
     def make_combo_searchable(self, combo: QComboBox):
         model = QStringListModel([combo.itemText(i) for i in range(combo.count())])
