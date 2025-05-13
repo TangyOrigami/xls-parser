@@ -28,11 +28,16 @@
 
 3. [?] Finish Table widget
     - [.] Pull data from db (requires db.py to be done).
-    - [?] Add interoperability between widgets.
+    - [.] Add interoperability between widgets.
+    - [!] Remove graph
+    - [!] Add OT calculation
+    - [!] Pass data to Dashboard widget to print paystub
+    - [!] Add way to do this in bulk.
 
-4. [,] Finish Dashboard widget.
-    - [,] There's nothing done on this. Heavy WIP.
-    - [?] This might be getting scrapped.
+4. [!] Finish Dashboard widget.
+    - [!] Dashboard will now create paystub
+    - [!] Create paystub
+    - [!] Add way to do this in bulk.
 
 5. [?] Clean up code.
     - [?] This will never be done, it is purpusefully an unreachable goal.

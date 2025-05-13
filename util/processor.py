@@ -5,7 +5,6 @@ import xlrd
 from structs.comments import Comments
 from structs.employee import Employee
 from structs.pay_period import PayPeriod
-from util.comment_worker import CommentWorker
 from util.logger import CLogger
 from util.parser import Parser as p
 from util.work_entry_worker import WorkEntryWorker
@@ -92,15 +91,15 @@ class Processor:
                 BUILD=BUILD,
             )
 
-            if False:
-                # This will need to use the `CommentWorker`
+            if len(pi_comm) >= 2 or len(po_comm) >= 2 or len(sp_comm) >= 2:
+
                 c_comments = Comments(
                     pay_period_id=c_pay_period.pay_period_id,
                     employee_id=c_user.employee_id,
-                    date=comm_date,
-                    punch_in_comment=pi_comm,
-                    punch_out_comment=po_comm,
-                    special_pay_comment=sp_comm,
+                    date=comm_date[0],
+                    punch_in_comment=pi_comm[0],
+                    punch_out_comment=po_comm[0],
+                    special_pay_comment=sp_comm[0],
                     BUILD=BUILD,
                 )
 
@@ -183,7 +182,7 @@ class Processor:
 
         return comm_date
 
-    def __get_pi_comm(self, sheet, BUILD) -> [str, [int, int]]:
+    def __get_pi_comm(self, sheet, BUILD) -> str:
         pi_comm = p.xls_parser(
             sheet=sheet,
             mincolx=1,
@@ -198,7 +197,7 @@ class Processor:
 
         return pi_comm
 
-    def __get_po_comm(self, sheet, BUILD) -> [str, [int, int]]:
+    def __get_po_comm(self, sheet, BUILD) -> str:
         po_comm = p.xls_parser(
             sheet=sheet,
             mincolx=1,
@@ -213,7 +212,7 @@ class Processor:
 
         return po_comm
 
-    def __get_sp_comm(self, sheet, BUILD) -> [str, [int, int]]:
+    def __get_sp_comm(self, sheet, BUILD) -> str:
         sp_comm = p.xls_parser(
             sheet=sheet,
             mincolx=1,

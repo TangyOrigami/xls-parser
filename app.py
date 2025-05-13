@@ -15,7 +15,7 @@ from util.logger import CLogger
 load_dotenv()
 log = CLogger().get_logger()
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+project_root = Path(__file__).resolve().parent.parent
 
 
 def args_parser(app) -> [str, str]:
@@ -62,12 +62,12 @@ class MainWindow(QMainWindow):
         open_button.setStatusTip("Open a file")
         open_button.triggered.connect(self.tab_menu.table_widget.open_file_dialog)
 
-        export_button = QAction("Export as", self)
-        export_button.setStatusTip("Export database")
+        export_button = QAction("Export", self)
+        export_button.setStatusTip("Export database into a compressed dump file")
         export_button.triggered.connect(self.tab_menu.table_widget.export_button_action)
 
         import_button = QAction("Import", self)
-        import_button.setStatusTip("Import database")
+        import_button.setStatusTip("Import compressed dump file to use as database")
         import_button.triggered.connect(self.tab_menu.table_widget.import_button_action)
 
         close_button = QAction("Close", self)
@@ -91,25 +91,19 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self.tab_menu)
 
-    def import_button_action(self, s):
-        """
-        Injests a dump file and re-creates the database.
-        """
-        print("import", s)
-
     def close_gracefully(self):
         """
-        Closes gracefully application once backup is generated.
+        Closes application gracefully once backup is generated.
         """
         try:
             log.info("Creating backup...")
-            project_root = Path(__file__).resolve().parent.parent
             target_db_path = project_root / "app.db"
             backup_db_path = project_root / "app_backup.db"
 
             result = DBInterface().create_backup(
                 target_db_path=target_db_path, backup_db_path=backup_db_path
             )
+            DBInterface().close()
 
             if result == r.ERROR:
                 raise Exception("Failed to create backup")
@@ -124,9 +118,16 @@ class MainWindow(QMainWindow):
             self.close()
 
     def app_setup(self, BUILD: str, DB: str):
-        db = DBInterface(DB)
 
-        db.initialize_db(BUILD)
+        root_db = project_root / DB
+
+        if os.path.exists(root_db):
+            db = DBInterface(DB)
+            db.initialize_db(BUILD)
+        else:
+            backup_db = project_root / "app_backup.db"
+            db = DBInterface(backup_db)
+            db.initialize_db(BUILD)
 
 
 if __name__ == "__main__":

@@ -138,7 +138,6 @@ def test_initialize_db_from_dump_file():
         assert result[1] == r.SUCCESS
         assert dump_path.exists()
 
-    # Attempt to restore (will fail due to schema conflict and return ERROR after fallback)
     result = dbi.initialize_db_from_dump_file(str(dump_path))
     assert result == r.SUCCESS
 

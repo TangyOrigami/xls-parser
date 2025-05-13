@@ -1,5 +1,4 @@
 import gzip
-import os
 import shutil
 import sqlite3 as db
 import threading
@@ -11,6 +10,8 @@ from structs.result import Result as r
 from util.logger import CLogger
 
 log = CLogger().get_logger()
+
+project_root = Path(__file__).resolve().parent.parent
 
 
 class DBInterface:
@@ -60,10 +61,10 @@ class DBInterface:
             self.cursor = None
 
     def __init__(self, DB: str = "app.db"):
-        log.warning("CURRENT DB: %s", DB)
         if not hasattr(self, "DB") or self.DB is None:
             self.DB = DB
             self.connect(DB)
+
         elif self.DB != DB:
             log.warning(
                 f"Ignored attempt to reinitialize DBInterface with a different path: {DB}"
@@ -104,17 +105,18 @@ class DBInterface:
             )
             """,
             """
-            CREATE TABLE IF NOT EXISTS PayPeriodComment(
+            CREATE TABLE IF NOT EXISTS PayPeriodComment (
                 CommentID INTEGER PRIMARY KEY AUTOINCREMENT,
                 PayPeriodID INTEGER NOT NULL,
                 EmployeeID INTEGER NOT NULL,
                 WorkDate TEXT NOT NULL,
-                PunchInComment TEXT,
-                PunchOutComment TEXT,
-                SpecialPayComment TEXT,
+                PunchInComment TEXT NOT NULL DEFAULT '',
+                PunchOutComment TEXT NOT NULL DEFAULT '',
+                SpecialPayComment TEXT NOT NULL DEFAULT '',
                 FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID) ON DELETE CASCADE,
-                FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID) ON DELETE CASCADE
-            )
+                FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID) ON DELETE CASCADE,
+                UNIQUE(PunchInComment, PunchOutComment, SpecialPayComment)
+            );
             """,
             """
             CREATE TABLE IF NOT EXISTS Meta(
@@ -128,7 +130,6 @@ class DBInterface:
             """,
         ]
 
-        project_root = Path(__file__).resolve().parent.parent
         target_db_path = project_root / "app.db"
         backup_db_path = project_root / "app_backup.db"
 
@@ -139,13 +140,6 @@ class DBInterface:
             if result != r.SUCCESS:
                 log.error("Failed to initialize db")
                 raise Exception("Schema initialization failed")
-
-            result = self.create_backup(
-                target_db_path=target_db_path, backup_db_path=backup_db_path
-            )
-            if result == r.ERROR:
-                log.error("Failed to create backup")
-                raise Exception("Failed to create backup")
 
             log.info("Database schema initialized successfully.")
             return r.SUCCESS
@@ -169,12 +163,11 @@ class DBInterface:
             return r.ERROR
 
     def initialize_db_from_dump_file(self, path_to_file: str) -> r:
-        project_root = Path(__file__).resolve().parent.parent
         target_db_path = project_root / "app.db"
         backup_db_path = project_root / "app_backup.db"
 
         try:
-            dump_path = Path(str(path_to_file)).resolve(strict=True)
+            dump_path = Path(str(path_to_file))
             log.info("Found dump file: %s", dump_path)
 
             # Backup existing database if it exists
@@ -304,12 +297,15 @@ class DBInterface:
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
     def save_comment(self, args: tuple, BUILD: str = "TEST") -> r:
+        """
+        This saves an entry even if it already exists.
+        """
         sql = """
         INSERT OR IGNORE INTO PayPeriodComment
-        (PayPeriodID, EmployeeID, WorkDate,
-        PunchInComment, PunchOutComment, SpecialPayComment)
+        (PayPeriodID, EmployeeID, WorkDate, PunchInComment, PunchOutComment, SpecialPayComment)
         VALUES (?, ?, ?, ?, ?, ?);
         """
+
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
     def delete_employee(self, args: tuple, BUILD: str = "TEST") -> r:
@@ -459,8 +455,15 @@ class DBInterface:
             self.cursor.execute(sql, args or ())
             self.connection.commit()
             return r.SUCCESS
+
         except db.Error as e:
-            log.error("__run_sql error: %s | %s", type(e).__name__, e.args)
+            log.error(
+                "__run_sql error: %s | %s | %s | %s",
+                type(e).__name__,
+                e.args,
+                sql,
+                args,
+            )
             return r.ERROR
 
     def __run_sql_batch(self, sql_statements: list[str], BUILD: str = "TEST") -> r:

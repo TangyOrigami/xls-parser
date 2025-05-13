@@ -23,7 +23,7 @@ class Comments:
         args = (
             pay_period_id,
             employee_id,
-            date,
+            str(date),
             punch_in_comment,
             punch_out_comment,
             special_pay_comment,
@@ -31,7 +31,7 @@ class Comments:
 
         self.__save_comment(BUILD=BUILD, db=db, args=args)
 
-        self.comment_id = self.__get_comment_id(BUILD=BUILD, db=db, args=args)
+        self.comment_id = self.__get_comment_id(BUILD=BUILD, db=db, args=args[:3])
 
         self.date = date
         self.pay_period_id = pay_period_id
