@@ -5,9 +5,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 from PyQt6.QtCore import QCommandLineOption, QCommandLineParser
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow
+from PyQt6.QtWidgets import QApplication, QMainWindow
 
-from structs.result import Result as r
+from structs.result import Result
 from ui.tabs import TabMenu
 from util.db import DBInterface
 from util.logger import CLogger
@@ -16,6 +16,8 @@ load_dotenv()
 log = CLogger().get_logger()
 
 project_root = Path(__file__).resolve().parent.parent
+ERROR = Result.ERROR
+SUCCESS = Result.SUCCESS
 
 
 def args_parser(app) -> [str, str]:
@@ -60,15 +62,18 @@ class MainWindow(QMainWindow):
         # Menu
         open_button = QAction("Open", self)
         open_button.setStatusTip("Open a file")
-        open_button.triggered.connect(self.tab_menu.table_widget.open_file_dialog)
+        open_button_connect = open_button.triggered.connect
+        open_button_connect(self.tab_menu.table_widget.open_file_dialog)
 
         export_button = QAction("Export", self)
         export_button.setStatusTip("Export database into a compressed dump file")
-        export_button.triggered.connect(self.tab_menu.table_widget.export_button_action)
+        export_button_connect = export_button.triggered.connect
+        export_button_connect(self.tab_menu.table_widget.export_button_action)
 
         import_button = QAction("Import", self)
         import_button.setStatusTip("Import compressed dump file to use as database")
-        import_button.triggered.connect(self.tab_menu.table_widget.import_button_action)
+        import_button_connect = import_button.triggered.connect
+        import_button_connect(self.tab_menu.table_widget.import_button_action)
 
         close_button = QAction("Close", self)
         close_button.setStatusTip("Close current view")
@@ -97,15 +102,11 @@ class MainWindow(QMainWindow):
         """
         try:
             log.info("Creating backup...")
-            target_db_path = project_root / "app.db"
-            backup_db_path = project_root / "app_backup.db"
 
-            result = DBInterface().create_backup(
-                target_db_path=target_db_path, backup_db_path=backup_db_path
-            )
+            result = DBInterface().dump_db_and_compress(output_dir="backups")
             DBInterface().close()
 
-            if result == r.ERROR:
+            if result == ERROR:
                 raise Exception("Failed to create backup")
         except Exception as e:
             log.error(
@@ -119,15 +120,16 @@ class MainWindow(QMainWindow):
 
     def app_setup(self, BUILD: str, DB: str):
 
-        root_db = project_root / DB
+        db = DBInterface()
+        result = db.initialize_db(BUILD)
 
-        if os.path.exists(root_db):
-            db = DBInterface(DB)
-            db.initialize_db(BUILD)
-        else:
-            backup_db = project_root / "app_backup.db"
-            db = DBInterface(backup_db)
-            db.initialize_db(BUILD)
+        if result == ERROR:
+            self.tab_menu.table_widget.status_label.setText("Used backup")
+
+        if isinstance(result, list):
+            self.tab_menu.table_widget.status_label.setText("App started Successfully")
+
+        db.verify_db_integrity()
 
 
 if __name__ == "__main__":

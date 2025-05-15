@@ -1,17 +1,28 @@
+import glob
 import gzip
-import shutil
+import os
 import sqlite3 as db
 import threading
 from datetime import date
 from pathlib import Path
 from typing import Union
 
-from structs.result import Result as r
+from structs.exceptions import CustomExceptions as ce
+from structs.result import Result
 from util.logger import CLogger
+
+ERROR = Result.ERROR
+SUCCESS = Result.SUCCESS
 
 log = CLogger().get_logger()
 
 project_root = Path(__file__).resolve().parent.parent
+default_db = str(project_root / "app.db")
+backups_dir = project_root / "backups"
+db_schema = project_root / "schema.sql"
+db_temp = str(project_root / "temp.db")
+today = date.today().isoformat()
+FailedDatabaseInit = ce.FailedDatabaseInit()
 
 
 class DBInterface:
@@ -38,12 +49,13 @@ class DBInterface:
             cls._instance.DB = None
         cls._instance = None
 
-    def connect(self, db_name: str, force: bool = False):
+    def connect(self, db_name: str = default_db, force: bool = False):
         if self.connection and not force:
             return
         if self.connection:
             self.connection.close()
         self.connection = db.connect(db_name)
+        log.info("Successfully connected to db")
         self.cursor = self.connection.cursor()
         self.connection.execute("PRAGMA foreign_keys = ON;")
         self.connection.set_trace_callback(True)
@@ -60,17 +72,24 @@ class DBInterface:
             self.connection = None
             self.cursor = None
 
-    def __init__(self, DB: str = "app.db"):
-        if not hasattr(self, "DB") or self.DB is None:
-            self.DB = DB
-            self.connect(DB)
+    def __init__(self):
+        if self.DB is None:
+            self.DB = default_db
+            self.initialize_db()
 
-        elif self.DB != DB:
+        elif self.DB != default_db:
             log.warning(
-                f"Ignored attempt to reinitialize DBInterface with a different path: {DB}"
+                f"Ignored attempt to reinitialize DBInterface with a different path: {self.DB}"
             )
 
-    def initialize_db(self, BUILD: str = "TEST") -> r:
+    def initialize_db(self, BUILD: str = "TEST") -> Union[Result, list[str, Result]]:
+        """
+        Fault tolerant database initializer.
+        If `app.db` is not found the last saved backup will be used.
+        If there are no backups, it'll create an empty database with
+        the default schema.
+        """
+
         SCHEMA_VERSION = "1.0"
 
         sql = [
@@ -130,78 +149,81 @@ class DBInterface:
             """,
         ]
 
-        target_db_path = project_root / "app.db"
-        backup_db_path = project_root / "app_backup.db"
+        if not Path(default_db).exists():
+            log.warning("Default DB not found. Attempting restore from backup...")
+            result = self.__restore_from_backup()
+
+            if result == ERROR:
+                log.error("No backups found. Starting blank database...")
+                return self.__db_not_found(sql=sql)
+
+            return result
+
+        else:
+            self.connect(db_name=self.DB)
+
+            return SUCCESS
+
+    def __db_not_found(self, sql):
+        result = self.__run_sql_batch(sql_statements=sql)
+        if result == ERROR:
+            log.error("Failed to initialize db")
+            return ERROR
+
+        log.info("Database schema initialized successfully.")
+
+        self.connect()
+
+        return SUCCESS
+
+    def verify_db_integrity(self) -> Result:
+        """
+        Verify database integrity by comparing the current
+        database connections' schema to the schema.sql file.
+        """
+
+        vdb = db.connect(db_temp)
+        cursor = vdb.cursor()
+
+        with open(str(db_schema), "r") as sql_file:
+            sql_script = sql_file.read()
+
+        sql_commands = sql_script.split(";")
+
+        for command in sql_commands:
+            command = command.strip()
+            if command:
+                cursor.execute(command)
+
+        return SUCCESS
+
+    def initialize_db_from_dump_file(self, output_path: str) -> Result:
+        """
+        Takes path to compressed dump file and hot swaps db from it (*.sql.gz).
+        """
 
         try:
-            self.__ensure_connection()
-
-            result = self.__run_sql_batch(sql_statements=sql, BUILD=BUILD)
-            if result != r.SUCCESS:
-                log.error("Failed to initialize db")
-                raise Exception("Schema initialization failed")
-
-            log.info("Database schema initialized successfully.")
-            return r.SUCCESS
-
-        except Exception as e:
-            log.error(
-                "Failed to initialize DB schema: %s | %s", type(e).__name__, e.args
-            )
-            return self.restore_from_backup(backup_db_path, target_db_path)
-
-    def create_backup(self, target_db_path, backup_db_path):
-        try:
-            if target_db_path.exists():
-                if backup_db_path.exists():
-                    backup_db_path.unlink()
-                shutil.copy2(target_db_path, backup_db_path)
-                log.info("Backed up app.db to app_backup.db")
-            return r.SUCCESS
-        except Exception as e:
-            log.error("Failed to create backup: %s | %s", type(e).__name__, e.args)
-            return r.ERROR
-
-    def initialize_db_from_dump_file(self, path_to_file: str) -> r:
-        target_db_path = project_root / "app.db"
-        backup_db_path = project_root / "app_backup.db"
-
-        try:
-            dump_path = Path(str(path_to_file))
+            dump_path = Path(output_path)
             log.info("Found dump file: %s", dump_path)
 
-            # Backup existing database if it exists
-            if target_db_path.exists():
-                try:
-                    if backup_db_path.exists():
-                        backup_db_path.unlink()
-                    shutil.copy2(target_db_path, backup_db_path)
-                    log.info("Created backup: %s", backup_db_path.name)
-                    target_db_path.unlink()
-                except Exception as backup_err:
-                    log.error(
-                        "Backup process failed: %s | %s",
-                        type(backup_err).__name__,
-                        backup_err.args,
-                    )
-                    return r.ERROR
-            else:
-                log.info("No existing database to backup. Skipping.")
+            if Path(default_db).exists():
+                os.remove(Path(default_db))
 
             # Read and execute dump SQL
             with gzip.open(dump_path, mode="rt", encoding="utf-8") as f:
                 sql_script = f.read()
 
-            self._reconnect_to(target_db_path)
+            self.reset_instance()
+            self.connect()
             self.connection.executescript(sql_script)
             self.connection.commit()
-            self.DB = str(target_db_path)
+            self.DB = default_db
 
-            log.info("Successfully initialized DB from dump: %s", dump_path.name)
-            return r.SUCCESS
+            log.info("Successfully initialized DB from dump file: %s", dump_path.name)
+            return SUCCESS
 
         except FileNotFoundError:
-            log.error("Dump file not found: %s", path_to_file)
+            log.error("Dump file not found: %s", output_path)
 
         except (OSError, db.DatabaseError) as e:
             log.error(
@@ -210,49 +232,64 @@ class DBInterface:
 
         except Exception as e:
             log.exception("Unexpected error during DB initialization from dump: %s", e)
+            return ERROR
 
-        return self.restore_from_backup(backup_db_path, target_db_path)
-
-    def restore_from_backup(self, backup_db_path: Path, target_db_path: Path) -> r:
+    def __restore_from_backup(self) -> Union[list[str, Result], Result]:
         try:
-            log.warning("BACKUP PATH: %s", backup_db_path)
-            if backup_db_path.exists():
-                log.warning("Attempting to restore app.db from app_backup.db")
+            log.warning("Attempting to restore app.db from latest backup")
 
-                if self.connection:
-                    self.connection.close()
-                    self.connection = None
-                    self.cursor = None
+            # Get latest backup from `backup` directory.
+            latest_backup_path = self.__get_latest_backup_path()
 
-                shutil.copy2(backup_db_path, target_db_path)
+            if latest_backup_path == ERROR:
+                log.critical("Failed to find a backup.")
+                raise FileNotFoundError
 
-                self.connection = db.connect(str(target_db_path))
-                self.cursor = self.connection.cursor()
-                self.connection.execute("PRAGMA foreign_keys = ON;")
-                self.connection.set_trace_callback(True)
-                self.DB = str(target_db_path)
+            self.initialize_db_from_dump_file(output_path=latest_backup_path)
 
-                log.info("Successfully restored app.db from app_backup.db")
-                return r.ERROR
-            else:
-                log.critical("Backup DB not found. Manual recovery required.")
+            log.info("Successfully restored app.db")
+            return ["Restored database from last backup", SUCCESS]
+
         except Exception as restore_error:
             log.critical(
                 "Failed to restore backup DB: %s | %s",
                 type(restore_error).__name__,
                 restore_error.args,
             )
-        return r.ERROR
+            return ERROR
+
+    def __get_latest_backup_path(self) -> Union[Path, Result]:
+        try:
+            list_of_files = glob.glob(os.path.join(backups_dir, "*"))
+
+            if not list_of_files:
+                log.critical("No backups were found in: %s", backups_dir)
+                return ERROR
+
+            latest_file = max(list_of_files, key=os.path.getmtime)
+            log.info("LATEST BACKUP: %s", latest_file)
+            return Path(latest_file)
+
+        except OSError as e:
+            log.critical(
+                "Failed to get latest backup: %s | %s",
+                type(e).__name__,
+                e.args,
+            )
+            return ERROR
 
     def dump_db_and_compress(
-        self, BUILD: str = "TEST", path_to_file: str = "temp"
-    ) -> Union[list[str, r], r]:
+        self, BUILD: str = "TEST", output_dir: str = backups_dir
+    ) -> Union[list[str, Result], Result]:
+        """
+        Creates a dump file from the database and compresses
+        the file to the specified directory.
+        """
         self.__ensure_connection()
 
-        output_dir = Path(path_to_file)
+        output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        today = date.today().isoformat()
         filename = f"{BUILD.lower()}_dump_{today}.sql.gz"
         output_path = output_dir / filename
 
@@ -262,7 +299,7 @@ class DBInterface:
                     log.info(line)
                     gz_file.write(f"{line}\n")
 
-            return [str(output_path), r.SUCCESS]
+            return [str(output_path), SUCCESS]
 
         except Exception as e:
             log.error(
@@ -270,9 +307,9 @@ class DBInterface:
                 type(e).__name__,
                 e.args,
             )
-            return r.ERROR
+            return ERROR
 
-    def save_employee(self, args: tuple, BUILD: str = "TEST") -> r:
+    def save_employee(self, args: tuple, BUILD: str = "TEST") -> Result:
         sql = """
         INSERT OR IGNORE INTO Employee
         (FirstName, MiddleName, LastName, EmployeeGroup)
@@ -280,7 +317,7 @@ class DBInterface:
         """
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-    def save_pay_period(self, args: tuple, BUILD: str = "TEST") -> r:
+    def save_pay_period(self, args: tuple, BUILD: str = "TEST") -> Result:
         sql = """
         INSERT OR IGNORE INTO PayPeriod
         (EmployeeID, StartDate, EndDate)
@@ -288,7 +325,7 @@ class DBInterface:
         """
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-    def save_work_entry(self, args: tuple, BUILD: str = "TEST") -> r:
+    def save_work_entry(self, args: tuple, BUILD: str = "TEST") -> Result:
         sql = """
         INSERT OR IGNORE INTO WorkEntry
         (PayPeriodID, WorkDate, Hours)
@@ -296,7 +333,7 @@ class DBInterface:
         """
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-    def save_comment(self, args: tuple, BUILD: str = "TEST") -> r:
+    def save_comment(self, args: tuple, BUILD: str = "TEST") -> Result:
         """
         This saves an entry even if it already exists.
         """
@@ -308,7 +345,7 @@ class DBInterface:
 
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-    def delete_employee(self, args: tuple, BUILD: str = "TEST") -> r:
+    def delete_employee(self, args: tuple, BUILD: str = "TEST") -> Result:
         sql = """
         DELETE FROM Employee
         WHERE
@@ -316,7 +353,7 @@ class DBInterface:
         """
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-    def delete_work_entry(self, args: tuple, BUILD: str = "TEST") -> r:
+    def delete_work_entry(self, args: tuple, BUILD: str = "TEST") -> Result:
         sql = """
         DELETE FROM WorkEntry
         WHERE
@@ -324,20 +361,11 @@ class DBInterface:
         """
         return self.__run_sql(sql=sql, args=args, BUILD=BUILD)
 
-    def _reconnect_to(self, db_path: Path):
-        """Reconnects the database to a new target path."""
-        if self.connection:
-            self.connection.close()
-        self.connection = db.connect(str(db_path))
-        self.cursor = self.connection.cursor()
-        self.connection.execute("PRAGMA foreign_keys = ON;")
-        self.connection.set_trace_callback(True)
-
     # READ METHODS
 
     def _read_employee_id(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT EmployeeID
         FROM Employee
@@ -347,7 +375,7 @@ class DBInterface:
 
     def _read_employee_name(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT FirstName, MiddleName, LastName
         FROM Employee
@@ -357,7 +385,7 @@ class DBInterface:
 
     def _read_pay_period_id(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
             SELECT PayPeriodID
             FROM PayPeriod
@@ -367,7 +395,7 @@ class DBInterface:
 
     def _read_pay_period_id_by_date(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT PayPeriodID
         FROM PayPeriod
@@ -377,7 +405,7 @@ class DBInterface:
 
     def _read_work_entry_id(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT WorkEntryID
         FROM WorkEntry
@@ -387,7 +415,7 @@ class DBInterface:
 
     def _read_comment_id(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT CommentID
         FROM PayPeriodComment
@@ -397,7 +425,7 @@ class DBInterface:
 
     def _read_pay_period_ids(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT PayPeriodID
         FROM PayPeriod
@@ -407,7 +435,7 @@ class DBInterface:
 
     def _read_employee_ids(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT EmployeeID
         FROM PayPeriod
@@ -417,7 +445,7 @@ class DBInterface:
 
     def _read_work_entries(
         self, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         sql = """
         SELECT WorkDate, Hours
         FROM WorkEntry
@@ -425,7 +453,7 @@ class DBInterface:
         """
         return self.__run_sql_read(sql=sql, args=args, BUILD=BUILD)
 
-    def _read_pay_period_dates(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
+    def _read_pay_period_dates(self, BUILD: str = "TEST") -> Union[list[tuple], Result]:
         sql = """
         SELECT DISTINCT StartDate
         FROM PayPeriod
@@ -434,27 +462,27 @@ class DBInterface:
 
         return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
 
-    def _default_employee(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
+    def _default_employee(self, BUILD: str = "TEST") -> Union[list[tuple], Result]:
         sql = """
         SELECT FirstName, MiddleName, LastName
         FROM Employee ORDER BY ROWID ASC LIMIT 1;
         """
         return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
 
-    def _default_date(self, BUILD: str = "TEST") -> Union[list[tuple], r]:
+    def _default_date(self, BUILD: str = "TEST") -> Union[list[tuple], Result]:
         sql = """
         SELECT DISTINCT StartDate
         FROM PayPeriod ORDER BY StartDate LIMIT 1;
         """
         return self.__run_sql_read(sql=sql, args=(), BUILD=BUILD)
 
-    def __run_sql(self, sql: str, args: tuple, BUILD: str = "TEST") -> r:
+    def __run_sql(self, sql: str, args: tuple, BUILD: str = "TEST") -> Result:
         self.__ensure_connection()
 
         try:
             self.cursor.execute(sql, args or ())
             self.connection.commit()
-            return r.SUCCESS
+            return SUCCESS
 
         except db.Error as e:
             log.error(
@@ -464,23 +492,23 @@ class DBInterface:
                 sql,
                 args,
             )
-            return r.ERROR
+            return ERROR
 
-    def __run_sql_batch(self, sql_statements: list[str], BUILD: str = "TEST") -> r:
+    def __run_sql_batch(self, sql_statements: list[str], BUILD: str = "TEST") -> Result:
         self.__ensure_connection()
 
         try:
             for statement in sql_statements:
                 self.cursor.execute(statement)
             self.connection.commit()
-            return r.SUCCESS
+            return SUCCESS
         except db.Error as e:
             log.error("__run_sql error: %s | %s", type(e).__name__, e.args)
-            return r.ERROR
+            return ERROR
 
     def __run_sql_read(
         self, sql: str, args: tuple, BUILD: str = "TEST"
-    ) -> Union[list[tuple], r]:
+    ) -> Union[list[tuple], Result]:
         self.__ensure_connection()
 
         try:
@@ -490,7 +518,7 @@ class DBInterface:
             return results
         except db.Error as e:
             log.error("__run_sql error: %s | %s", type(e).__name__, e.args)
-            return r.ERROR
+            return ERROR
 
     def __ensure_connection(self):
         if not self.connection:

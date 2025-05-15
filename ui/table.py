@@ -18,13 +18,16 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from structs.result import Result as r
+from structs.result import Result
 from util.db import DBInterface
 from util.logger import CLogger
 from util.pay_period_manager import PayPeriodManager
 from util.processor import Processor
 
 log = CLogger().get_logger()
+
+ERROR = Result.ERROR
+SUCCESS = Result.SUCCESS
 
 
 class TableWidget(QWidget):
@@ -98,7 +101,7 @@ class TableWidget(QWidget):
 
             if file_path:
                 db = DBInterface()
-                result = db.dump_db_and_compress(path_to_file=file_path)
+                result = db.dump_db_and_compress(output_dir=file_path)
                 if isinstance(result, list):
                     self.status_label.setText("Exported backup to " + result[0])
             else:
@@ -118,15 +121,14 @@ class TableWidget(QWidget):
         """
         try:
             file_path = QFileDialog.getOpenFileName(
-                self, "Select compressed dump file", "*.sql.gz"
+                self, "Select compressed dump file", "", "*.sql.gz"
             )
 
             if file_path:
                 db = DBInterface()
-                # result = db.dump_db_and_compress(path_to_file=file_path)
-                result = db.initialize_db_from_dump_file(path_to_file=file_path[0])
+                result = db.initialize_db_from_dump_file(output_path=file_path[0])
 
-                if result == r.SUCCESS:
+                if result == SUCCESS:
                     self.status_label.setText("File Successfully Imported")
 
                 else:
@@ -174,12 +176,16 @@ class TableWidget(QWidget):
     def ppd_filler(self):
         try:
             dates = self.pp_manager.get_pay_period_dates()
-            for d in dates:
-                self.ppd.addItem(d)
-            self.make_combo_searchable(self.ppd)
+            if dates != ERROR:
+                for d in dates:
+                    self.ppd.addItem(d)
+                self.make_combo_searchable(self.ppd)
+            else:
+                self.status_label.setText("No Pay Periods found")
+
         except Exception as e:
             log.error("Failed to load pay period dates: %s", str(e))
-            self.status_label.setText("Failed to load pay period dates.")
+            self.status_label.setText(str(e))
 
     def ppd_choice(self, date: str):
         self.selected_date = date

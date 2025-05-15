@@ -26,6 +26,8 @@ class Employee:
 
         self.__save_user(BUILD=BUILD, db=db, args=args)
 
+        self.__get_employee_id(BUILD=BUILD, db=db, args=args[:3])
+
         self.employee_id = self.__get_employee_id(BUILD=BUILD, db=db, args=args[:3])
 
     def __save_user(self, BUILD: str, db: DBInterface, args: tuple):
