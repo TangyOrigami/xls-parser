@@ -83,7 +83,7 @@ class DBInterface:
                 f"Ignored attempt to reinitialize DBInterface with a different path: {self.DB}"
             )
 
-    def initialize_db(self, BUILD: str = "TEST") -> Union[Result, list[str, Result]]:
+    def initialize_db(self) -> Union[Result, list[str, Result]]:
         """
         Fault tolerant database initializer.
         If `app.db` is not found the last saved backup will be used.
@@ -91,64 +91,7 @@ class DBInterface:
         the default schema.
         """
 
-        SCHEMA_VERSION = "1.0"
-
-        sql = [
-            """
-            CREATE TABLE IF NOT EXISTS Employee(
-                EmployeeID INTEGER PRIMARY KEY AUTOINCREMENT,
-                FirstName TEXT NOT NULL,
-                MiddleName TEXT,
-                LastName TEXT NOT NULL,
-                EmployeeGroup TEXT,
-                UNIQUE(FirstName, MiddleName, LastName)
-            )
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS PayPeriod(
-                PayPeriodID INTEGER PRIMARY KEY AUTOINCREMENT,
-                EmployeeID INTEGER NOT NULL,
-                StartDate TEXT NOT NULL,
-                EndDate TEXT NOT NULL,
-                UNIQUE(EmployeeID, StartDate, EndDate),
-                FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID) ON DELETE CASCADE
-            )
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS WorkEntry(
-                WorkEntryID INTEGER PRIMARY KEY AUTOINCREMENT,
-                PayPeriodID INTEGER NOT NULL,
-                WorkDate TEXT NOT NULL,
-                Hours REAL NOT NULL CHECK(Hours >= 0.0),
-                UNIQUE(PayPeriodID, WorkDate),
-                FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID) ON DELETE CASCADE
-            )
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS PayPeriodComment (
-                CommentID INTEGER PRIMARY KEY AUTOINCREMENT,
-                PayPeriodID INTEGER NOT NULL,
-                EmployeeID INTEGER NOT NULL,
-                WorkDate TEXT NOT NULL,
-                PunchInComment TEXT NOT NULL DEFAULT '',
-                PunchOutComment TEXT NOT NULL DEFAULT '',
-                SpecialPayComment TEXT NOT NULL DEFAULT '',
-                FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID) ON DELETE CASCADE,
-                FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID) ON DELETE CASCADE,
-                UNIQUE(PunchInComment, PunchOutComment, SpecialPayComment)
-            );
-            """,
-            """
-            CREATE TABLE IF NOT EXISTS Meta(
-                Key TEXT PRIMARY KEY,
-                Value TEXT
-            )
-            """,
-            f"""
-            INSERT OR REPLACE INTO Meta (Key, Value)
-            VALUES ('SchemaVersion', '{SCHEMA_VERSION}')
-            """,
-        ]
+        sql = self.__read_db_schema()
 
         if not Path(default_db).exists():
             log.warning(
@@ -166,6 +109,22 @@ class DBInterface:
 
             return SUCCESS
 
+    def __read_db_schema(self) -> str:
+        try:
+            with open(str(db_schema), "r") as sql_file:
+                sql_script = sql_file.read()
+
+            sql_commands = sql_script.split(";")
+
+            return sql_commands
+
+        except Exception as e:
+            log.error(
+                "Failed to restore DB from dump: %s | %s", type(
+                    e).__name__, e.args
+            )
+            return ERROR
+
     def __db_not_found(self, sql):
         result = self.__run_sql_batch(sql_statements=sql)
         if result == ERROR:
@@ -177,42 +136,6 @@ class DBInterface:
         self.connect()
 
         return SUCCESS
-
-    def verify_db_integrity(self) -> Result:
-        """
-        Verify database integrity by comparing the current
-        database connections' schema to the schema.sql file.
-        """
-        # TODO:
-        # 1. Different ways of verifying DB integrity:
-        #   a. Use `PRAGMA` to verify the schemas of the tables
-        #      I.   File with the table schemas it should have
-        #      II.  Compare file with `PRAGMA` from tables in current db
-        #      III. If step 1 and 2 match, DB shouldn't have any issues.
-
-        try:
-            vdb = db.connect(db_temp)
-            cursor = vdb.cursor()
-
-            with open(str(db_schema), "r") as sql_file:
-                sql_script = sql_file.read()
-
-            sql_commands = sql_script.split(";")
-
-            for command in sql_commands:
-                command = command.strip()
-                if command:
-                    cursor.execute(command)
-
-            vdb.close()
-            os.remove(db_temp)
-
-            return SUCCESS
-        except Exception as e:
-            log.error(
-                "Failed to restore DB from dump: %s | %s", type(
-                    e).__name__, e.args
-            )
 
     def initialize_db_from_zip(self, path_to_zip: str) -> Result:
         """

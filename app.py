@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
     def app_setup(self, BUILD: str, DB: str):
 
         db = DBInterface()
-        result = db.initialize_db(BUILD)
+        result = db.initialize_db()
 
         if result == ERROR:
             self.tab_menu.table_widget.status_label.setText("Used backup")
@@ -134,8 +134,6 @@ class MainWindow(QMainWindow):
         if isinstance(result, list):
             self.tab_menu.table_widget.status_label.setText(
                 "App started Successfully")
-
-        db.verify_db_integrity()
 
 
 if __name__ == "__main__":
