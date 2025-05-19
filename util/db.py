@@ -1,5 +1,5 @@
 import glob
-import gzip
+import zipfile
 import os
 import sqlite3 as db
 import threading
@@ -22,6 +22,7 @@ backups_dir = project_root / "backups"
 db_schema = project_root / "schema.sql"
 db_temp = str(project_root / "temp.db")
 today = date.today().isoformat()
+
 FailedDatabaseInit = ce.FailedDatabaseInit()
 
 
@@ -150,7 +151,8 @@ class DBInterface:
         ]
 
         if not Path(default_db).exists():
-            log.warning("Default DB not found. Attempting restore from backup...")
+            log.warning(
+                "Default DB not found. Attempting restore from backup...")
             result = self.__restore_from_backup()
 
             if result == ERROR:
@@ -181,57 +183,91 @@ class DBInterface:
         Verify database integrity by comparing the current
         database connections' schema to the schema.sql file.
         """
-
-        vdb = db.connect(db_temp)
-        cursor = vdb.cursor()
-
-        with open(str(db_schema), "r") as sql_file:
-            sql_script = sql_file.read()
-
-        sql_commands = sql_script.split(";")
-
-        for command in sql_commands:
-            command = command.strip()
-            if command:
-                cursor.execute(command)
-
-        return SUCCESS
-
-    def initialize_db_from_dump_file(self, output_path: str) -> Result:
-        """
-        Takes path to compressed dump file and hot swaps db from it (*.sql.gz).
-        """
+        # TODO:
+        # 1. Different ways of verifying DB integrity:
+        #   a. Use `PRAGMA` to verify the schemas of the tables
+        #      I.   File with the table schemas it should have
+        #      II.  Compare file with `PRAGMA` from tables in current db
+        #      III. If step 1 and 2 match, DB shouldn't have any issues.
 
         try:
-            dump_path = Path(output_path)
-            log.info("Found dump file: %s", dump_path)
+            vdb = db.connect(db_temp)
+            cursor = vdb.cursor()
+
+            with open(str(db_schema), "r") as sql_file:
+                sql_script = sql_file.read()
+
+            sql_commands = sql_script.split(";")
+
+            for command in sql_commands:
+                command = command.strip()
+                if command:
+                    cursor.execute(command)
+
+            vdb.close()
+            os.remove(db_temp)
+
+            return SUCCESS
+        except Exception as e:
+            log.error(
+                "Failed to restore DB from dump: %s | %s", type(
+                    e).__name__, e.args
+            )
+
+    def initialize_db_from_zip(self, path_to_zip: str) -> Result:
+        """
+        Takes path to compressed dump file and hot swaps db from it (*.zip).
+        """
+        dump_path = Path(path_to_zip)
+
+        try:
+            if dump_path.exists():
+                log.info("Found dump file: %s", dump_path)
+
+            else:
+                raise FileNotFoundError
+
+            self.reset_instance()
 
             if Path(default_db).exists():
                 os.remove(Path(default_db))
 
-            # Read and execute dump SQL
-            with gzip.open(dump_path, mode="rt", encoding="utf-8") as f:
-                sql_script = f.read()
+            with zipfile.ZipFile(dump_path, 'r') as zip_ref:
+                file_names = zip_ref.namelist()
 
-            self.reset_instance()
+                assert len(
+                    file_names) == 1, "Expected only one file in the archive"
+
+                sql_filename = file_names[0]
+
+                # Read the .sql file content
+                with zip_ref.open(sql_filename) as sql_file:
+                    sql_script = sql_file.read().decode('utf-8')
+
             self.connect()
             self.connection.executescript(sql_script)
             self.connection.commit()
             self.DB = default_db
 
-            log.info("Successfully initialized DB from dump file: %s", dump_path.name)
+            log.info("Successfully initialized DB from dump file: %s",
+                     dump_path.name)
+
             return SUCCESS
 
         except FileNotFoundError:
-            log.error("Dump file not found: %s", output_path)
+            log.error("Dump file not found: %s", path_to_zip)
+            return ERROR
 
         except (OSError, db.DatabaseError) as e:
             log.error(
-                "Failed to restore DB from dump: %s | %s", type(e).__name__, e.args
+                "Failed to restore DB from dump: %s | %s", type(
+                    e).__name__, e.args
             )
+            return ERROR
 
         except Exception as e:
-            log.exception("Unexpected error during DB initialization from dump: %s", e)
+            log.exception(
+                "Unexpected error during DB initialization from dump: %s", e)
             return ERROR
 
     def __restore_from_backup(self) -> Union[list[str, Result], Result]:
@@ -245,7 +281,7 @@ class DBInterface:
                 log.critical("Failed to find a backup.")
                 raise FileNotFoundError
 
-            self.initialize_db_from_dump_file(output_path=latest_backup_path)
+            self.initialize_db_from_zip(path_to_zip=latest_backup_path)
 
             log.info("Successfully restored app.db")
             return ["Restored database from last backup", SUCCESS]
@@ -256,6 +292,7 @@ class DBInterface:
                 type(restore_error).__name__,
                 restore_error.args,
             )
+
             return ERROR
 
     def __get_latest_backup_path(self) -> Union[Path, Result]:
@@ -278,26 +315,48 @@ class DBInterface:
             )
             return ERROR
 
-    def dump_db_and_compress(
-        self, BUILD: str = "TEST", output_dir: str = backups_dir
-    ) -> Union[list[str, Result], Result]:
+    def __get_latest_zip_backup(self) -> Union[Path, Result]:
+        try:
+            list_of_files = glob.glob(os.path.join(backups_dir, "*"))
+
+            if not list_of_files:
+                log.critical("No backups were found in: %s", backups_dir)
+                return ERROR
+
+            latest_file = max(list_of_files, key=os.path.getmtime)
+            log.info("LATEST BACKUP: %s", latest_file)
+            return Path(latest_file)
+
+        except OSError as e:
+            log.critical(
+                "Failed to get latest backup: %s | %s",
+                type(e).__name__,
+                e.args,
+            )
+            return ERROR
+
+    def dump_db_and_zip(self, output_dir: str = backups_dir) -> Union[list[str, Result], Result]:
         """
         Creates a dump file from the database and compresses
         the file to the specified directory.
         """
+
         self.__ensure_connection()
 
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        filename = f"{BUILD.lower()}_dump_{today}.sql.gz"
-        output_path = output_dir / filename
+        archive_name = f"backup_for_{today}.zip"
+        output_path = output_dir / archive_name
+        dump = ""
 
         try:
-            with gzip.open(output_path, "wt", encoding="utf-8") as gz_file:
-                for line in self.connection.iterdump():
-                    log.info(line)
-                    gz_file.write(f"{line}\n")
+
+            for line in self.connection.iterdump():
+                dump += line + "\n"
+
+            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("dump.sql", dump)
 
             return [str(output_path), SUCCESS]
 
@@ -523,5 +582,6 @@ class DBInterface:
     def __ensure_connection(self):
         if not self.connection:
             if not getattr(self, "DB", None):
-                raise ValueError("No DB path specified. Cannot establish connection.")
+                raise ValueError(
+                    "No DB path specified. Cannot establish connection.")
             self.connect(self.DB)

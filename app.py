@@ -66,12 +66,14 @@ class MainWindow(QMainWindow):
         open_button_connect(self.tab_menu.table_widget.open_file_dialog)
 
         export_button = QAction("Export", self)
-        export_button.setStatusTip("Export database into a compressed dump file")
+        export_button.setStatusTip(
+            "Export database into a compressed dump file")
         export_button_connect = export_button.triggered.connect
         export_button_connect(self.tab_menu.table_widget.export_button_action)
 
         import_button = QAction("Import", self)
-        import_button.setStatusTip("Import compressed dump file to use as database")
+        import_button.setStatusTip(
+            "Import compressed dump file to use as database")
         import_button_connect = import_button.triggered.connect
         import_button_connect(self.tab_menu.table_widget.import_button_action)
 
@@ -103,11 +105,14 @@ class MainWindow(QMainWindow):
         try:
             log.info("Creating backup...")
 
-            result = DBInterface().dump_db_and_compress(output_dir="backups")
+            result = DBInterface().dump_db_and_zip()
             DBInterface().close()
 
             if result == ERROR:
                 raise Exception("Failed to create backup")
+
+            log.info("Backup Successfully Created")
+
         except Exception as e:
             log.error(
                 "Couldn't close application gracefully: %s | %s",
@@ -115,7 +120,7 @@ class MainWindow(QMainWindow):
                 e.args,
             )
         finally:
-            log.info("Backup Successfully Created")
+            log.info("Application Closed")
             self.close()
 
     def app_setup(self, BUILD: str, DB: str):
@@ -127,7 +132,8 @@ class MainWindow(QMainWindow):
             self.tab_menu.table_widget.status_label.setText("Used backup")
 
         if isinstance(result, list):
-            self.tab_menu.table_widget.status_label.setText("App started Successfully")
+            self.tab_menu.table_widget.status_label.setText(
+                "App started Successfully")
 
         db.verify_db_integrity()
 

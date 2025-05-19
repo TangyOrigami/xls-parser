@@ -63,7 +63,8 @@ class TableWidget(QWidget):
         self.main_table.setRowCount(14)
         self.main_table.setHorizontalHeaderLabels(["Date", "Hours"])
         self.main_table.setStyleSheet("border: 1px solid gray;")
-        self.main_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.main_table.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers)
 
         self.plot_widget = pg.PlotWidget()
 
@@ -101,9 +102,10 @@ class TableWidget(QWidget):
 
             if file_path:
                 db = DBInterface()
-                result = db.dump_db_and_compress(output_dir=file_path)
+                result = db.dump_db_and_zip(output_dir=file_path)
                 if isinstance(result, list):
-                    self.status_label.setText("Exported backup to " + result[0])
+                    self.status_label.setText(
+                        "Exported backup to " + result[0])
             else:
                 raise Exception("Invalid file path")
 
@@ -121,12 +123,12 @@ class TableWidget(QWidget):
         """
         try:
             file_path = QFileDialog.getOpenFileName(
-                self, "Select compressed dump file", "", "*.sql.gz"
+                self, "Select compressed dump file", "", "*.zip"
             )
 
             if file_path:
                 db = DBInterface()
-                result = db.initialize_db_from_dump_file(output_path=file_path[0])
+                result = db.initialize_db_from_zip(path_to_zip=file_path[0])
 
                 if result == SUCCESS:
                     self.status_label.setText("File Successfully Imported")
@@ -145,7 +147,8 @@ class TableWidget(QWidget):
             )
 
     def make_combo_searchable(self, combo: QComboBox):
-        model = QStringListModel([combo.itemText(i) for i in range(combo.count())])
+        model = QStringListModel([combo.itemText(i)
+                                 for i in range(combo.count())])
         proxy_model = QSortFilterProxyModel(combo)
         proxy_model.setSourceModel(model)
 
