@@ -119,6 +119,7 @@ class MainWindow(QMainWindow):
                 type(e).__name__,
                 e.args,
             )
+
         finally:
             log.info("Application Closed")
             self.close()
@@ -129,7 +130,8 @@ class MainWindow(QMainWindow):
         result = db.initialize_db()
 
         if result == ERROR:
-            self.tab_menu.table_widget.status_label.setText("Used backup")
+            self.tab_menu.table_widget.status_label.setText(
+                "App started with blank database.")
 
         if isinstance(result, list):
             self.tab_menu.table_widget.status_label.setText(
@@ -140,7 +142,7 @@ if __name__ == "__main__":
     args = sys.argv
     app = QApplication(args)
     app.setApplicationName("Timesheet Analyzer")
-    app.setApplicationVersion("0.0.5")
+    app.setApplicationVersion("0.0.8")
     BUILD, DB = args_parser(app)
 
     window = MainWindow(BUILD, DB)

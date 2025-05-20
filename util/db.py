@@ -120,8 +120,8 @@ class DBInterface:
 
         except Exception as e:
             log.error(
-                "Failed to restore DB from dump: %s | %s", type(
-                    e).__name__, e.args
+                "Failed to read DB schema: %s | %s",
+                type(e).__name__, e.args
             )
             return ERROR
 
@@ -158,8 +158,8 @@ class DBInterface:
             with zipfile.ZipFile(dump_path, 'r') as zip_ref:
                 file_names = zip_ref.namelist()
 
-                assert len(
-                    file_names) == 1, "Expected only one file in the archive"
+                if len(file_names) != 1:
+                    raise zipfile.BadZipFile
 
                 sql_filename = file_names[0]
 
@@ -181,10 +181,17 @@ class DBInterface:
             log.error("Dump file not found: %s", path_to_zip)
             return ERROR
 
+        except zipfile.BadZipFile as e:
+            log.error(
+                "Failed to open zip file: %s | %s",
+                type(e).__name__, e.args
+            )
+            return ERROR
+
         except (OSError, db.DatabaseError) as e:
             log.error(
-                "Failed to restore DB from dump: %s | %s", type(
-                    e).__name__, e.args
+                "Failed to restore DB from dump: %s | %s",
+                type(e).__name__, e.args
             )
             return ERROR
 
@@ -224,11 +231,20 @@ class DBInterface:
 
             if not list_of_files:
                 log.critical("No backups were found in: %s", backups_dir)
-                return ERROR
+                raise ERROR
 
             latest_file = max(list_of_files, key=os.path.getmtime)
-            log.info("LATEST BACKUP: %s", latest_file)
-            return Path(latest_file)
+
+            if len(list_of_files) > 26:
+                earliest_file = min(list_of_files, key=os.path.getmtime)
+                os.remove(earliest_file)
+
+            if latest_file and self.check_file_extension(latest_file, ".zip"):
+                log.info("LATEST BACKUP: %s", latest_file)
+                return Path(latest_file)
+
+            else:
+                raise ERROR
 
         except OSError as e:
             log.critical(
@@ -238,27 +254,12 @@ class DBInterface:
             )
             return ERROR
 
-    def __get_latest_zip_backup(self) -> Union[Path, Result]:
-        try:
-            list_of_files = glob.glob(os.path.join(backups_dir, "*"))
+    def check_file_extension(path_to_file: Path, extension: str):
+        filename = str(path_to_file.name)
+        return filename.split(".")[1].lower() == extension.lower()
 
-            if not list_of_files:
-                log.critical("No backups were found in: %s", backups_dir)
-                return ERROR
-
-            latest_file = max(list_of_files, key=os.path.getmtime)
-            log.info("LATEST BACKUP: %s", latest_file)
-            return Path(latest_file)
-
-        except OSError as e:
-            log.critical(
-                "Failed to get latest backup: %s | %s",
-                type(e).__name__,
-                e.args,
-            )
-            return ERROR
-
-    def dump_db_and_zip(self, output_dir: str = backups_dir) -> Union[list[str, Result], Result]:
+    def dump_db_and_zip(self,
+                        output_dir: str = backups_dir) -> Union[str, Result]:
         """
         Creates a dump file from the database and compresses
         the file to the specified directory.
@@ -274,6 +275,15 @@ class DBInterface:
         dump = ""
 
         try:
+            list_of_files = glob.glob(os.path.join(backups_dir, "*"))
+
+            if not list_of_files:
+                log.critical("No backups were found in: %s", backups_dir)
+                raise ERROR
+
+            if len(list_of_files) > 26:
+                earliest_file = min(list_of_files, key=os.path.getmtime)
+                os.remove(earliest_file)
 
             for line in self.connection.iterdump():
                 dump += line + "\n"
@@ -281,7 +291,7 @@ class DBInterface:
             with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
                 zf.writestr("dump.sql", dump)
 
-            return [str(output_path), SUCCESS]
+            return str(output_path)
 
         except Exception as e:
             log.error(

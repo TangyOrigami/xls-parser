@@ -93,8 +93,10 @@ class TableWidget(QWidget):
     def export_button_action(self):
         """
         Creates zipped dump file of the database that can be imported
-        in another instance of the application to re-create the database.
+        in another instance of the application to re-create the database
+        with it's data.
         """
+
         try:
             file_path = QFileDialog.getExistingDirectory(
                 self, "Select Directory", os.getcwd()
@@ -103,9 +105,13 @@ class TableWidget(QWidget):
             if file_path:
                 db = DBInterface()
                 result = db.dump_db_and_zip(output_dir=file_path)
-                if isinstance(result, list):
-                    self.status_label.setText(
-                        "Exported backup to " + result[0])
+
+                if result == ERROR:
+                    raise Exception("Failed to create dump file and zip it.")
+
+                self.status_label.setText(
+                    "Exported backup to " + result)
+
             else:
                 raise Exception("Invalid file path")
 
