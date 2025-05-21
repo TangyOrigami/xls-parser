@@ -513,7 +513,8 @@ class DBInterface:
             self.connection.commit()
             return results
         except db.Error as e:
-            log.error("__run_sql error: %s | %s", type(e).__name__, e.args)
+            log.error("__run_sql error: %s | %s | %s",
+                      type(e).__name__, e.args, sql)
             return ERROR
 
     def __ensure_connection(self):

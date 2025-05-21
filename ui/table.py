@@ -217,16 +217,17 @@ class TableWidget(QWidget):
     def employee_choice(self, employee: str):
         if employee == "" or employee is None:
             employee = self.pp_manager.get_default_employee()
-            if self.selected_date:
-                self.populate_main(
-                    employee=employee, selected_date=self.selected_date
-                )
+
+            self.populate_main(
+                employee=employee, selected_date=self.selected_date
+            )
+
         else:
             sanitized = self.__sanitize_name_for_db(employee)
-            if self.selected_date:
-                self.populate_main(
-                    employee=sanitized, selected_date=self.selected_date
-                )
+
+            self.populate_main(
+                employee=sanitized, selected_date=self.selected_date
+            )
 
     def process_file(self, file_path):
         try:
@@ -254,36 +255,52 @@ class TableWidget(QWidget):
 
             date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
 
-            dates = []
+            t_dates = {}
+
             if not work_entries:
                 raise NoWorkEntries()
 
             for i in range(14):
                 curr_date = date_obj + timedelta(i)
+
                 self.__add_cell_value(i, 0, curr_date)
-                dates.append(str(curr_date))
 
-                for x, entry in enumerate(work_entries):
-                    if self.main_table.item(i, 0).text() == entry[0]:
-                        self.__add_cell_value(row=i, col=1, value=entry[1])
-                        work_entries.pop(x)
-                        break
+                t_dates.update({i: str(curr_date)})
 
-                    else:
-                        self.__add_cell_value(row=i, col=1, value=0)
-                        break
+            for entry in work_entries:
+                if entry[0] in t_dates.values():
+                    date_key = self.__get_key_from_value(
+                        dictionary=t_dates, value=entry[0])[0]
+
+                    self.__add_cell_value(
+                        row=date_key,
+                        col=1,
+                        value=entry[1],
+                    )
+
+                del t_dates[date_key]
+
+            for key, value in t_dates.items():
+                self.__add_cell_value(
+                    row=key, col=1, value=0)
+
+        except KeyError as e:
+            log.error("KeyError: %s", str(e))
 
         except NoWorkEntries:
             for i in range(14):
                 curr_date = date_obj + timedelta(i)
                 self.__add_cell_value(i, 0, curr_date)
-                dates.append(str(curr_date))
+                t_dates.update({i: str(curr_date)})
 
                 self.__add_cell_value(row=i, col=1, value=0)
 
         except Exception as e:
             log.error("Failed to populate table: %s", str(e))
             self.status_label.setText("Error populating timesheet data.")
+
+    def __get_key_from_value(self, dictionary: dict, value: any):
+        return [key for key, val in dictionary.items() if val == value]
 
     def __add_cell_value(self, row: int, col: int, value):
         try:
