@@ -102,6 +102,7 @@ class MainWindow(QMainWindow):
         """
         Closes application gracefully once backup is generated.
         """
+
         try:
             log.info("Creating backup...")
 

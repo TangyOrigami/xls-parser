@@ -1,4 +1,3 @@
-import pyqtgraph as pg
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 
@@ -19,13 +18,6 @@ class Dashboard(QWidget):
         if BUILD == "DEBUG":
             logger.info("Dashboard: %s", BUILD)
 
-        self.plot_widget = pg.PlotWidget()
-
-        x = [1, 2, 3, 4, 5]
-        y = [6, 7, 2, 4, 5]
-
-        self.plot_widget.plot(x, y, pen="r")
-
         # Title Label
         self.title_label = QLabel("Dashboard", self)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -39,7 +31,6 @@ class Dashboard(QWidget):
         middle_layout = QVBoxLayout()
         middle_layout.addWidget(self.title_label)
         middle_layout.addWidget(self.button)
-        middle_layout.addWidget(self.plot_widget)
 
         # Main Layout
         main_layout = QVBoxLayout(self)

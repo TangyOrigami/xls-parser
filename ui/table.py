@@ -2,7 +2,6 @@ import os
 import re
 from datetime import datetime, timedelta
 
-import pyqtgraph as pg
 from PyQt6.QtCore import QSortFilterProxyModel, QStringListModel, Qt
 from PyQt6.QtWidgets import (
     QApplication,
@@ -18,6 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from structs.exceptions import NoWorkEntries
 from structs.result import Result
 from util.db import DBInterface
 from util.logger import CLogger
@@ -59,18 +59,16 @@ class TableWidget(QWidget):
         self.info_section.addWidget(self.refresh)
 
         self.main_table = QTableWidget()
-        self.main_table.setColumnCount(2)
+        self.main_table.setColumnCount(3)
         self.main_table.setRowCount(14)
-        self.main_table.setHorizontalHeaderLabels(["Date", "Hours"])
+        self.main_table.setHorizontalHeaderLabels(
+            ["Date", "Total Hours", "Over Time"])
         self.main_table.setStyleSheet("border: 1px solid gray;")
         self.main_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers)
 
-        self.plot_widget = pg.PlotWidget()
-
         self.middle_widgets = QHBoxLayout()
         self.middle_widgets.addWidget(self.main_table)
-        self.middle_widgets.addWidget(self.plot_widget)
 
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -220,11 +218,15 @@ class TableWidget(QWidget):
         if employee == "" or employee is None:
             employee = self.pp_manager.get_default_employee()
             if self.selected_date:
-                self.populate_main(employee=employee, date=self.selected_date)
+                self.populate_main(
+                    employee=employee, selected_date=self.selected_date
+                )
         else:
             sanitized = self.__sanitize_name_for_db(employee)
             if self.selected_date:
-                self.populate_main(employee=sanitized, date=self.selected_date)
+                self.populate_main(
+                    employee=sanitized, selected_date=self.selected_date
+                )
 
     def process_file(self, file_path):
         try:
@@ -239,20 +241,22 @@ class TableWidget(QWidget):
             log.error("Failed to process file: %s", str(e))
             self.status_label.setText("Failed to process file.")
 
-    def populate_main(self, employee: tuple, date: str):
+    def populate_main(self, employee: tuple, selected_date: str):
         try:
             emp_id = self.pp_manager.get_employee_id(employee)
-            pp_id = self.pp_manager.get_pay_period_id(emp_id, date)
+            pp_id = self.pp_manager.get_pay_period_id(emp_id, selected_date)
             work_entries = self.pp_manager.get_work_entries(pp_id)
 
             self.main_table.clearContents()
 
-            if not date:
-                date = self.pp_manager.get_default_date()
-            date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+            if not selected_date:
+                selected_date = self.pp_manager.get_default_date()
+
+            date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
 
             dates = []
-            hours = []
+            if not work_entries:
+                raise NoWorkEntries()
 
             for i in range(14):
                 curr_date = date_obj + timedelta(i)
@@ -261,43 +265,48 @@ class TableWidget(QWidget):
 
                 for x, entry in enumerate(work_entries):
                     if self.main_table.item(i, 0).text() == entry[0]:
-                        hours.append(entry[1])
-                        self.__add_cell_value(i, 1, entry[1])
+                        self.__add_cell_value(row=i, col=1, value=entry[1])
                         work_entries.pop(x)
                         break
+
                     else:
-                        self.__add_cell_value(i, 1, 0)
-                        hours.append(0)
+                        self.__add_cell_value(row=i, col=1, value=0)
                         break
 
-            x = [i for i in range(1, len(hours) + 1)]
-            ticks = list(zip(x, dates))
-            self.populate_graph(x=x, y=hours, ticks=ticks)
+        except NoWorkEntries:
+            for i in range(14):
+                curr_date = date_obj + timedelta(i)
+                self.__add_cell_value(i, 0, curr_date)
+                dates.append(str(curr_date))
+
+                self.__add_cell_value(row=i, col=1, value=0)
 
         except Exception as e:
             log.error("Failed to populate table: %s", str(e))
             self.status_label.setText("Error populating timesheet data.")
 
-    def populate_graph(self, x: list, y: list, ticks: tuple):
-        self.plot_widget.clear()
-        self.plot_widget.plot(x, y, pen="r")
-
     def __add_cell_value(self, row: int, col: int, value):
         try:
             item = QTableWidgetItem(str(value))
             self.main_table.setItem(row, col, item)
+
         except Exception as e:
             log.error("Failed to set cell (%d, %d): %s", row, col, str(e))
 
     def __sanitize_name_for_db(self, employee: str):
         name = employee.split(" ")
+
         if len(name) < 3:
             name.insert(1, "")
+
         if len(name) > 3:
             name = [name[0], name[1], name[2] + " " + name[3]]
+
         if len(name[1]) >= 3 or re.search(pattern="JR(.|)", string=name[2]):
             if len(name[1]) > 1:
                 name = [name[0], name[1] + " " + name[2]]
+
         if len(name) < 3:
             name.insert(1, "")
+
         return name

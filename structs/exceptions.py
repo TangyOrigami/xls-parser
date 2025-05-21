@@ -1,13 +1,18 @@
-class CustomExceptions:
+class FailedDatabaseInit(BaseException):
     """
-    Collection of custom exceptions for more robust error handling.
+    Exception thrown when database not found.
     """
 
-    class FailedDatabaseInit(Exception):
-        """
-        Exception thrown when database not found.
-        """
+    def __init__(self, details=None):
+        super().__init__("Couldn't find database")
+        self.details = details
 
-        def __init__(self, details=None):
-            super().__init__("Couldn't find database")
-            self.details = details
+
+class NoWorkEntries(BaseException):
+    """
+    Exception thrown when database not found.
+    """
+
+    def __init__(self, details=None):
+        super().__init__("No work entries were found")
+        self.details = details

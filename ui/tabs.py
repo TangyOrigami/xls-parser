@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QLabel, QTabWidget, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QTabWidget
 
 from ui.dashboard import Dashboard
 from ui.table import TableWidget
@@ -29,13 +29,5 @@ class TabMenu(QTabWidget):
         # Dashboard
         dashboard_widget = self.dashboard_widget
 
-        # Paystub
-        paystub_widget = QWidget()
-        paystub_layout = QVBoxLayout(paystub_widget)
-        paystub_label = QLabel("Paystub Widget")
-        paystub_layout.addWidget(paystub_label)
-        paystub_widget.setLayout(paystub_layout)
-
         self.addTab(table_widget, "Table")
         self.addTab(dashboard_widget, "Dashboard")
-        self.addTab(paystub_widget, "Paystub")

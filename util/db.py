@@ -7,7 +7,6 @@ from datetime import date
 from pathlib import Path
 from typing import Union
 
-from structs.exceptions import CustomExceptions as ce
 from structs.result import Result
 from util.logger import CLogger
 
@@ -22,8 +21,6 @@ backups_dir = project_root / "backups"
 db_schema = project_root / "schema.sql"
 db_temp = str(project_root / "temp.db")
 today = date.today().isoformat()
-
-FailedDatabaseInit = ce.FailedDatabaseInit()
 
 
 class DBInterface:
@@ -83,7 +80,7 @@ class DBInterface:
                 f"Ignored attempt to reinitialize DBInterface with a different path: {self.DB}"
             )
 
-    def initialize_db(self) -> Union[Result, list[str, Result]]:
+    def initialize_db(self) -> Result:
         """
         Fault tolerant database initializer.
         If `app.db` is not found the last saved backup will be used.
@@ -109,7 +106,7 @@ class DBInterface:
 
             return SUCCESS
 
-    def __read_db_schema(self) -> str:
+    def __read_db_schema(self) -> Union[list[str], Result]:
         try:
             with open(str(db_schema), "r") as sql_file:
                 sql_script = sql_file.read()
@@ -125,7 +122,7 @@ class DBInterface:
             )
             return ERROR
 
-    def __db_not_found(self, sql):
+    def __db_not_found(self, sql) -> Result:
         result = self.__run_sql_batch(sql_statements=sql)
         if result == ERROR:
             log.error("Failed to initialize db")
@@ -133,7 +130,7 @@ class DBInterface:
 
         log.info("Database schema initialized successfully.")
 
-        self.connect()
+        self.connect(db_name=default_db)
 
         return SUCCESS
 
@@ -278,13 +275,20 @@ class DBInterface:
             list_of_files = glob.glob(os.path.join(backups_dir, "*"))
 
             if not list_of_files:
-                log.critical("No backups were found in: %s", backups_dir)
-                raise ERROR
+                raise FileNotFoundError(list_of_files)
 
-            if len(list_of_files) > 26:
+            if len(list_of_files)+25 > 26:
                 earliest_file = min(list_of_files, key=os.path.getmtime)
                 os.remove(earliest_file)
 
+        except Exception as e:
+            log.critical(
+                "Couldn't find any backups: %s | %s",
+                type(e).__name__,
+                e.args,
+            )
+
+        try:
             for line in self.connection.iterdump():
                 dump += line + "\n"
 
