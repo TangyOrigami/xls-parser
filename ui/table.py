@@ -243,6 +243,9 @@ class TableWidget(QWidget):
             self.status_label.setText("Failed to process file.")
 
     def populate_main(self, employee: tuple, selected_date: str):
+        if not selected_date:
+            selected_date = self.pp_manager.get_default_date()
+
         try:
             emp_id = self.pp_manager.get_employee_id(employee)
             pp_id = self.pp_manager.get_pay_period_id(emp_id, selected_date)
@@ -250,12 +253,9 @@ class TableWidget(QWidget):
 
             self.main_table.clearContents()
 
-            if not selected_date:
-                selected_date = self.pp_manager.get_default_date()
-
             date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
 
-            t_dates = {}
+            dates = {}
 
             if not work_entries:
                 raise NoWorkEntries()
@@ -265,24 +265,33 @@ class TableWidget(QWidget):
 
                 self.__add_cell_value(i, 0, curr_date)
 
-                t_dates.update({i: str(curr_date)})
+                dates.update({i: str(curr_date)})
 
             for entry in work_entries:
-                if entry[0] in t_dates.values():
+                if entry[0] in dates.values():
                     date_key = self.__get_key_from_value(
-                        dictionary=t_dates, value=entry[0])[0]
+                        dictionary=dates, value=entry[0])[0]
 
                     self.__add_cell_value(
                         row=date_key,
                         col=1,
-                        value=entry[1],
+                        value=float(entry[1]),
                     )
 
-                del t_dates[date_key]
+                    self.__add_cell_value(
+                        row=date_key,
+                        col=2,
+                        value=entry[1]-8,
+                    )
 
-            for key, value in t_dates.items():
+                del dates[date_key]
+
+            for key, value in dates.items():
                 self.__add_cell_value(
-                    row=key, col=1, value=0)
+                    row=key, col=1, value=0.0)
+
+                self.__add_cell_value(
+                    row=key, col=2, value=0.0)
 
         except KeyError as e:
             log.error("KeyError: %s", str(e))
@@ -291,9 +300,10 @@ class TableWidget(QWidget):
             for i in range(14):
                 curr_date = date_obj + timedelta(i)
                 self.__add_cell_value(i, 0, curr_date)
-                t_dates.update({i: str(curr_date)})
 
-                self.__add_cell_value(row=i, col=1, value=0)
+                self.__add_cell_value(row=i, col=1, value=0.0)
+
+                self.__add_cell_value(row=i, col=2, value=0.0)
 
         except Exception as e:
             log.error("Failed to populate table: %s", str(e))
