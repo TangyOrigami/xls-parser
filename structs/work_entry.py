@@ -1,32 +1,44 @@
 from datetime import datetime
 
-from util.db import DBInterface
+from structs.result import Result
+from util.async_db import AsyncDBInterface
 from util.logger import CLogger
 
 log = CLogger().get_logger()
 
+ERROR = Result.ERROR
+SUCCESS = Result.SUCCESS
+
 
 class WorkEntry:
-    def __init__(
-        self, pay_period_id: int, work_date: datetime, hours: float, BUILD: str
-    ):
-
-        db = DBInterface()
-
-        args = (pay_period_id, work_date, hours)
-
-        self.__save_work_entry(BUILD=BUILD, db=db, args=args)
-
-        self.work_entry_id = self.__get_work_entry_id(BUILD=BUILD, db=db, args=args)
+    def __init__(self, pay_period_id: int, work_date: datetime, hours: float, work_entry_id: int):
 
         self.pay_period_id = pay_period_id
         self.work_date = work_date
         self.hours = hours
+        self.work_entry_id = work_entry_id
 
-    def __save_work_entry(self, BUILD: str, db: DBInterface, args: tuple):
-        db.save_work_entry(BUILD=BUILD, args=args)
+    @classmethod
+    async def create(cls, pay_period_id: int, work_date: datetime, hours: float, BUILD: str
+                     ):
+        args = (pay_period_id, work_date, hours)
 
-    def __get_work_entry_id(self, BUILD: str, db: str, args: tuple):
-        result = int(db._read_work_entry_id(BUILD=BUILD, args=args)[0][0])
+        async with AsyncDBInterface() as db:
+            result = await db.save_work_entry(args)
 
-        return result
+            if result == ERROR:
+                raise Exception("Failed to save work entry.")
+
+            id_result = await db._read_work_entry_id(args=args)
+
+            if id_result == ERROR or not id_result:
+                raise Exception("Failed to fetch work entry ID.")
+
+            work_entry_id = int(id_result[0][0])
+
+        return cls(
+            pay_period_id=pay_period_id,
+            work_date=work_date,
+            hours=hours,
+            work_entry_id=work_entry_id
+        )

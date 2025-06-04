@@ -1,70 +1,45 @@
-from util.db import DBInterface
+from structs.result import Result
+from util.async_db import AsyncDBInterface
 from util.logger import CLogger
 
 log = CLogger().get_logger()
 
+ERROR = Result.ERROR
+SUCCESS = Result.SUCCESS
+
 
 class Employee:
-    """
-    User object that creates an interface
-    of the users' logged hours.
-    """
-
-    def __init__(self, name: str, group: str, BUILD: str):
-        """
-        User Interface
-        """
-        db = DBInterface()
-
-        self.first_name, self.middle_name, self.last_name = self.__split_name(
-            name=name, BUILD=BUILD
-        )
-
+    def __init__(self, first_name, middle_name, last_name, group, employee_id):
+        self.first_name = first_name
+        self.middle_name = middle_name
+        self.last_name = last_name
         self.group = group
+        self.employee_id = employee_id
 
-        args = (self.first_name, self.middle_name, self.last_name, self.group)
+    @classmethod
+    async def create(cls, name: dict, group: str):
+        first_name, middle_name, last_name = cls.__split_name(name)
 
-        self.__save_user(BUILD=BUILD, db=db, args=args)
+        args = (first_name, middle_name, last_name, group)
 
-        self.__get_employee_id(BUILD=BUILD, db=db, args=args[:3])
+        async with AsyncDBInterface() as db:
+            result = await db.save_employee(args=args)
 
-        self.employee_id = self.__get_employee_id(BUILD=BUILD, db=db, args=args[:3])
+            if result == ERROR:
+                raise Exception("Failed to save user.")
 
-    def __save_user(self, BUILD: str, db: DBInterface, args: tuple):
-        db.save_employee(BUILD=BUILD, args=(args))
+            id_result = await db._read_employee_id(args=args[:3])
 
-    def __get_employee_id(self, BUILD: str, db: DBInterface, args: tuple):
-        result = int(db._read_employee_id(BUILD=BUILD, args=(args))[0][0])
+            if id_result == ERROR or not id_result:
+                raise Exception("Failed to fetch user ID.")
 
-        return result
+            employee_id = int(id_result[0][0])
 
-    def __split_name(self, name, BUILD):
-        first_name = ""
-        middle_name = ""
-        last_name = ""
+        return cls(first_name, middle_name, last_name, group, employee_id)
 
-        for i in name:
-            if i == "Last Name":
-                last_name = " ".join(name[i]).strip()
-
-            elif i == "Middle Name":
-                if name[i] == "":
-                    pass
-
-                else:
-                    middle_name = name[i].strip()
-
-            else:
-                first_name = name[i].strip()
-
+    @staticmethod
+    def __split_name(name: dict):
+        first_name = name.get("First Name", "").strip()
+        middle_name = name.get("Middle Name", "").strip()
+        last_name = " ".join(name.get("Last Name", [])).strip()
         return first_name, middle_name, last_name
-
-    def _print_object_info(self):
-
-        first_name = f"\nFirst Name: \t{self.first_name}\n"
-        middle_name = f"Middle Name: \t{self.middle_name}\n"
-        last_name = f"Last Name: \t{self.last_name}\n"
-        employee_id = f"EID: \t{self.employee_id}\n"
-        group = f"Group: \t{self.group}\n"
-
-        log.info(first_name + middle_name + last_name + employee_id + group)

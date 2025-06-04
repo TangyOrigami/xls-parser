@@ -2,9 +2,9 @@ import os
 import re
 from datetime import datetime, timedelta
 
+from qasync import asyncSlot
 from PyQt6.QtCore import QSortFilterProxyModel, QStringListModel, Qt
 from PyQt6.QtWidgets import (
-    QApplication,
     QComboBox,
     QCompleter,
     QFileDialog,
@@ -19,10 +19,9 @@ from PyQt6.QtWidgets import (
 
 from structs.exceptions import NoWorkEntries
 from structs.result import Result
-from util.db import DBInterface
+from util.async_db import AsyncDBInterface
 from util.logger import CLogger
 from util.pay_period_manager import PayPeriodManager
-from util.processor import Processor
 
 log = CLogger().get_logger()
 
@@ -31,12 +30,10 @@ SUCCESS = Result.SUCCESS
 
 
 class TableWidget(QWidget):
-    def __init__(self, BUILD: str):
+    def __init__(self):
         super().__init__()
-        self.setAcceptDrops(True)
 
-        self.BUILD = BUILD
-        self.pp_manager = PayPeriodManager(BUILD)
+        self.pp_manager = PayPeriodManager()
 
         self.title_label = QLabel("Pay Period", self)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -86,9 +83,8 @@ class TableWidget(QWidget):
         main_layout.addLayout(middle_layout)
         self.setLayout(main_layout)
 
-        self.ppd_filler()
-
-    def export_button_action(self):
+    @asyncSlot()
+    async def export_button_action(self):
         """
         Creates zipped dump file of the database that can be imported
         in another instance of the application to re-create the database
@@ -101,8 +97,8 @@ class TableWidget(QWidget):
             )
 
             if file_path:
-                db = DBInterface()
-                result = db.dump_db_and_zip(output_dir=file_path)
+                async with AsyncDBInterface() as db:
+                    result = await db.dump_db_and_zip(output_dir=file_path)
 
                 if result == ERROR:
                     raise Exception("Failed to create dump file and zip it.")
@@ -120,7 +116,8 @@ class TableWidget(QWidget):
                 e.args,
             )
 
-    def import_button_action(self):
+    @asyncSlot()
+    async def import_button_action(self):
         """
         Creates zipped dump file of the database that can be imported
         in another instance of the application to re-create the database.
@@ -131,8 +128,8 @@ class TableWidget(QWidget):
             )
 
             if file_path:
-                db = DBInterface()
-                result = db.initialize_db_from_zip(path_to_zip=file_path[0])
+                async with AsyncDBInterface() as db:
+                    result = await db.initialize_db_from_zip(output_dir=file_path[0])
 
                 if result == SUCCESS:
                     self.status_label.setText("File Successfully Imported")
@@ -161,32 +158,23 @@ class TableWidget(QWidget):
         completer.setFilterMode(Qt.MatchFlag.MatchContains)
         combo.setCompleter(completer)
 
-    def open_file_dialog(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Excel File", "", "Excel Files (*.xls)"
-        )
-        if file_path:
-            now = datetime.now().strftime("%I:%M:%S")
-            processing = f"Started processing file at {now}"
-
-            self.status_label.setText(processing)
-            QApplication.processEvents()
-
-            self.process_file(file_path)
-
-    def refresh_choice(self):
+    @asyncSlot()
+    async def refresh_choice(self):
         self.ppd.clear()
         self.employee.clear()
-        self.ppd_filler()
+        await self.ppd_filler()
         self.update()
 
-    def ppd_filler(self):
+    async def ppd_filler(self):
         try:
-            dates = self.pp_manager.get_pay_period_dates()
+            dates = await self.pp_manager.get_pay_period_dates()
+
             if dates != ERROR:
                 for d in dates:
                     self.ppd.addItem(d)
+
                 self.make_combo_searchable(self.ppd)
+
             else:
                 self.status_label.setText("No Pay Periods found")
 
@@ -194,62 +182,55 @@ class TableWidget(QWidget):
             log.error("Failed to load pay period dates: %s", str(e))
             self.status_label.setText(str(e))
 
-    def ppd_choice(self, date: str):
+    @asyncSlot()
+    async def ppd_choice(self, date: str):
         self.selected_date = date
         self.employee.clear()
-        self.employee_filler(date)
+        await self.employee_filler(date)
         self.selected_employee = self.employee.currentText()
 
-    def employee_filler(self, date: str):
+    @asyncSlot()
+    async def employee_filler(self, date: str):
         if date == "" or date is None:
             date = self.pp_manager.get_default_date()
 
         try:
-            names = self.pp_manager.get_employee_names_by_date(date)
+            names = await self.pp_manager.get_employee_names_by_date(date)
             for name in names:
                 self.employee.addItem(name)
+
             self.employee.update()
             self.make_combo_searchable(self.employee)
+
         except Exception as e:
             log.error("Failed to load employees: %s", str(e))
             self.status_label.setText("Failed to load employee list.")
 
-    def employee_choice(self, employee: str):
+    @asyncSlot()
+    async def employee_choice(self, employee: str):
         if employee == "" or employee is None:
-            employee = self.pp_manager.get_default_employee()
+            employee = await self.pp_manager.get_default_employee()
 
-            self.populate_main(
+            await self.populate_main(
                 employee=employee, selected_date=self.selected_date
             )
 
         else:
-            sanitized = self.__sanitize_name_for_db(employee)
+            sanitized = TableWidget.__sanitize_name_for_db(employee)
 
-            self.populate_main(
+            await self.populate_main(
                 employee=sanitized, selected_date=self.selected_date
             )
 
-    def process_file(self, file_path):
-        try:
-            Processor().extract_data(file_path, self.BUILD)
-
-            now = datetime.now().strftime("%I:%M:%S")
-            processed = f"File successfully processed at {now}"
-
-            self.status_label.setText(processed)
-
-        except Exception as e:
-            log.error("Failed to process file: %s", str(e))
-            self.status_label.setText("Failed to process file.")
-
-    def populate_main(self, employee: tuple, selected_date: str):
+    @asyncSlot()
+    async def populate_main(self, employee: tuple, selected_date: str):
         if not selected_date:
             selected_date = self.pp_manager.get_default_date()
 
         try:
-            emp_id = self.pp_manager.get_employee_id(employee)
-            pp_id = self.pp_manager.get_pay_period_id(emp_id, selected_date)
-            work_entries = self.pp_manager.get_work_entries(pp_id)
+            emp_id = await self.pp_manager.get_employee_id(employee)
+            pp_id = await self.pp_manager.get_pay_period_id(emp_id, selected_date)
+            work_entries = await self.pp_manager.get_work_entries(pp_id)
 
             self.main_table.clearContents()
 
@@ -260,6 +241,8 @@ class TableWidget(QWidget):
             if not work_entries:
                 raise NoWorkEntries()
 
+            # Fill in Dates in Pay Period
+
             for i in range(14):
                 curr_date = date_obj + timedelta(i)
 
@@ -267,9 +250,11 @@ class TableWidget(QWidget):
 
                 dates.update({i: str(curr_date)})
 
+            # Fill Work Entries and Overtime Earned
+
             for entry in work_entries:
                 if entry[0] in dates.values():
-                    date_key = self.__get_key_from_value(
+                    date_key = TableWidget.__get_key_from_value(
                         dictionary=dates, value=entry[0])[0]
 
                     self.__add_cell_value(
@@ -286,15 +271,14 @@ class TableWidget(QWidget):
 
                 del dates[date_key]
 
+            # Fill Empty Work Entries
+
             for key, value in dates.items():
                 self.__add_cell_value(
                     row=key, col=1, value=0.0)
 
                 self.__add_cell_value(
                     row=key, col=2, value=0.0)
-
-        except KeyError as e:
-            log.error("KeyError: %s", str(e))
 
         except NoWorkEntries:
             for i in range(14):
@@ -309,8 +293,8 @@ class TableWidget(QWidget):
             log.error("Failed to populate table: %s", str(e))
             self.status_label.setText("Error populating timesheet data.")
 
-    def __get_key_from_value(self, dictionary: dict, value: any):
-        return [key for key, val in dictionary.items() if val == value]
+        except KeyError as e:
+            log.error("KeyError: %s", str(e))
 
     def __add_cell_value(self, row: int, col: int, value):
         try:
@@ -320,7 +304,12 @@ class TableWidget(QWidget):
         except Exception as e:
             log.error("Failed to set cell (%d, %d): %s", row, col, str(e))
 
-    def __sanitize_name_for_db(self, employee: str):
+    @staticmethod
+    def __get_key_from_value(dictionary: dict, value: any):
+        return [key for key, val in dictionary.items() if val == value]
+
+    @staticmethod
+    def __sanitize_name_for_db(employee: str):
         name = employee.split(" ")
 
         if len(name) < 3:

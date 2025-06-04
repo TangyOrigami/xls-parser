@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS WorkEntry(
 	FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID) ON DELETE CASCADE
 );
 
+
 CREATE TABLE IF NOT EXISTS PayPeriodComment (
 	CommentID INTEGER PRIMARY KEY AUTOINCREMENT,
 	PayPeriodID INTEGER NOT NULL,
@@ -35,8 +36,9 @@ CREATE TABLE IF NOT EXISTS PayPeriodComment (
 	SpecialPayComment TEXT NOT NULL DEFAULT '',
 	FOREIGN KEY (PayPeriodID) REFERENCES PayPeriod(PayPeriodID) ON DELETE CASCADE,
 	FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID) ON DELETE CASCADE,
-	UNIQUE(PunchInComment, PunchOutComment, SpecialPayComment)
+	UNIQUE(EmployeeID, WorkDate, PunchInComment, PunchOutComment, SpecialPayComment)
 );
+
 
 CREATE TABLE IF NOT EXISTS Meta(
 	Key TEXT PRIMARY KEY,

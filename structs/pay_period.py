@@ -1,40 +1,39 @@
 from datetime import datetime, timedelta
 
-from util.db import DBInterface
+from structs.result import Result
+from util.async_db import AsyncDBInterface
 from util.logger import CLogger
 
 log = CLogger().get_logger()
 
+ERROR = Result.ERROR
+SUCCESS = Result.SUCCESS
+
 
 class PayPeriod:
-    def __init__(self, employee_id: int, date: datetime, BUILD: str):
-
-        db = DBInterface()
-
-        self.start_date = date
-        self.end_date = date + timedelta(days=14)
-
-        args = (employee_id, self.start_date, self.end_date)
-
-        self.__save_pay_period(BUILD=BUILD, db=db, args=args)
-
-        self.pay_period_id = self.__get_pay_period_id(BUILD=BUILD, db=db, args=args[:2])
-
+    def __init__(self, employee_id: int, start_date: datetime, end_date: datetime, pay_period_id: int):
         self.employee_id = employee_id
+        self.start_date = start_date
+        self.end_date = end_date
+        self.pay_period_id = pay_period_id
 
-    def __save_pay_period(self, BUILD: str, db: DBInterface, args: tuple):
-        db.save_pay_period(BUILD=BUILD, args=(args))
+    @classmethod
+    async def create(cls, employee_id: int, date: datetime):
+        start_date = date
+        end_date = date + timedelta(days=14)
+        args = (employee_id, start_date, end_date)
 
-    def __get_pay_period_id(self, BUILD: str, db: DBInterface, args: tuple):
-        result = db._read_pay_period_id(BUILD=BUILD, args=(args))[0][0]
+        async with AsyncDBInterface() as db:
+            result = await db.save_pay_period(args=args)
 
-        return result
+            if result == ERROR:
+                raise Exception("Failed to save pay period.")
 
-    def _print_object_info(self):
+            id_result = await db._read_pay_period_id(args=args[:2])
 
-        start_date = f"\nStart Date: \t{self.start_date}\n"
-        end_date = f"End Date: \t{self.end_date}\n"
-        pay_period_id = f"PPID: \t{self.pay_period_id}\n"
-        employee_id = f"EID: \t{self.employee_id}\n"
+            if id_result == ERROR or not id_result:
+                raise Exception("Failed to fetch pay period ID.")
 
-        log.info(start_date + end_date + pay_period_id + employee_id)
+            pay_period_id = int(id_result[0][0])
+
+        return cls(employee_id=employee_id, start_date=start_date, end_date=end_date, pay_period_id=pay_period_id)
