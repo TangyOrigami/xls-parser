@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
 )
 
 from structs.result import Result
-from util.async_db import AsyncDBInterface
 from util.logger import CLogger
 from util.pay_period_manager import PayPeriodManager
 from util.task_manager import TaskManager

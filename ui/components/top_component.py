@@ -22,8 +22,12 @@ class TopComponent(QWidget):
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_label.setStyleSheet("font-size: 20px; padding: 10px;")
 
+        # TODO:
+        # Float left
+        # Chatbox
+        # Scrollable
         self.status_label = QLabel("")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.top_layout = QVBoxLayout()
         self.top_layout.addWidget(self.title_label)

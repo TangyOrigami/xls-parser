@@ -1,4 +1,6 @@
 import aiosqlite
+import shutil
+import tempfile
 import os
 import zipfile
 import glob
@@ -175,8 +177,8 @@ class AsyncDBInterface:
                 await self.connection.close()
                 self.connection = None
 
-            if Path(self.db_path).exists():
-                os.remove(self.db_path)
+            if not Path(zip_path).exists():
+                raise FileNotFoundError("Dump archive not found.")
 
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 dump_files = zf.namelist()
@@ -190,18 +192,43 @@ class AsyncDBInterface:
                 log.info("Executing: %s", dump_files[0])
                 sql = zf.read(dump_files[0]).decode("utf-8")
 
-            async with aiosqlite.connect(self.db_path) as conn:
-                await conn.executescript(sql)
-                await conn.commit()
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_db_path = tmp_file.name
+
+            async with aiosqlite.connect(tmp_db_path) as tmp_conn:
+                await tmp_conn.executescript(sql)
+                await tmp_conn.commit()
+
+                cursor = await tmp_conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table';"
+                )
+
+                tables = await cursor.fetchall()
+
+                if not tables:
+                    raise ValueError("Initialized DB contains no tables.")
+
+            if Path(self.db_path).exists():
+                os.remove(self.db_path)
+
+            shutil.move(tmp_db_path, self.db_path)
 
             log.info("Successfully initialized DB from dump.")
-
             return SUCCESS
 
         except Exception as e:
             log.error("initialize_db_from_zip failed: %s | %s",
                       type(e).__name__, e.args)
             return ERROR
+
+        finally:
+            try:
+                if 'tmp_db_path' in locals() and Path(tmp_db_path).exists():
+                    os.remove()
+
+            except Exception as e:
+                log.error("initialize_db_from_zip failed: %s | %s",
+                          type(e).__name__, e.args)
 
     async def dump_db_and_zip(
             self,

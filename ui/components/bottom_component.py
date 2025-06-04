@@ -1,7 +1,3 @@
-import os
-import re
-from datetime import datetime, timedelta
-
 from qasync import asyncSlot
 from PyQt6.QtCore import QSortFilterProxyModel, QStringListModel, Qt
 from PyQt6.QtWidgets import (
@@ -17,12 +13,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from structs.exceptions import NoWorkEntries
 from structs.result import Result
-from structs.db_result import DBResult
-from util.async_db import AsyncDBInterface
 from util.logger import CLogger
-from util.pay_period_manager import PayPeriodManager
 from util.task_manager import TaskManager
 
 log = CLogger().get_logger()
@@ -37,6 +29,10 @@ class BottomComponent(QWidget):
 
         self.manager = manager
 
+        # TODO:
+        # Add comments to the right of the entry table
+        # Chatbox
+        # Scrollable
         self.entry_table = QTableWidget()
         self.entry_table.setColumnCount(3)
         self.entry_table.setRowCount(14)
@@ -70,6 +66,10 @@ class BottomComponent(QWidget):
         self.title_2 = QLabel("Week 2", self)
         self.title_2.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_2.setStyleSheet("font-size: 20px; padding: 10px;")
+
+        # TODO:
+        # 1. Make this it's own component
+        # 2. Change the use of tables and just use labels.
 
         self.summary_2 = QTableWidget()
         self.summary_2.setColumnCount(2)

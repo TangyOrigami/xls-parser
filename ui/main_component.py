@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import (
 )
 
 from structs.result import Result
-from util.async_db import AsyncDBInterface
 from util.logger import CLogger
 from util.task_manager import TaskManager
 from ui.components.top_component import TopComponent
