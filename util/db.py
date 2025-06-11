@@ -19,7 +19,6 @@ project_root = Path(__file__).resolve().parent.parent
 default_db = str(project_root / "app.db")
 backups_dir = project_root / "backups"
 db_schema = project_root / "schema.sql"
-db_temp = str(project_root / "temp.db")
 today = date.today().isoformat()
 
 

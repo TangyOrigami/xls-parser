@@ -49,12 +49,13 @@ class AsyncDBInterface:
             log.error("__run_sql error: %s | %s", sql, e)
             return ERROR
 
-    async def __run_sql_read(self, sql: str, args: tuple = ()) -> Union[list[tuple], Result]:
+    async def __run_sql_read(self, sql: str, args: tuple = ()) -> Union[dict, Result]:
         try:
             async with self.connection.execute(sql, args) as cursor:
                 rows = await cursor.fetchall()
+                result = [tuple(row) for row in rows]
 
-            return [tuple(row) for row in rows]
+            return result
 
         except Exception as e:
             log.error("__run_sql_read error: %s | %s", sql, e)
@@ -111,7 +112,6 @@ class AsyncDBInterface:
         return SUCCESS
 
     async def create_from_schema(self) -> Result:
-        log.info("Running DB schema script:\n%s", db_schema)
 
         try:
             with open(str(db_schema), "r") as f:
@@ -137,7 +137,6 @@ class AsyncDBInterface:
 
         try:
             latest = self.get_latest_backup_path()
-            log.info(latest)
             if latest == ERROR:
                 raise FileNotFoundError("No backup found.")
 
@@ -189,7 +188,6 @@ class AsyncDBInterface:
                 if len(dump_files) > 1:
                     raise ValueError("Zip archive is not valid.")
 
-                log.info("Executing: %s", dump_files[0])
                 sql = zf.read(dump_files[0]).decode("utf-8")
 
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
@@ -235,7 +233,6 @@ class AsyncDBInterface:
             output_dir: Union[str, Path] = backups_dir
     ) -> Union[str, Result]:
 
-        log.info("%s", output_dir)
         output_dir = Path(output_dir).absolute()
         output_dir.mkdir(parents=True, exist_ok=True)
         archive_path = output_dir / f"backup_for_{today}.zip"
@@ -317,7 +314,7 @@ class AsyncDBInterface:
 
     async def _read_employee_id(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT EmployeeID
         FROM Employee
@@ -327,7 +324,7 @@ class AsyncDBInterface:
 
     async def _read_employee_name(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT FirstName, MiddleName, LastName
         FROM Employee
@@ -337,7 +334,7 @@ class AsyncDBInterface:
 
     async def _read_pay_period_id(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
             SELECT PayPeriodID
             FROM PayPeriod
@@ -347,7 +344,7 @@ class AsyncDBInterface:
 
     async def _read_pay_period_id_by_date(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT PayPeriodID
         FROM PayPeriod
@@ -357,7 +354,7 @@ class AsyncDBInterface:
 
     async def _read_work_entry_id(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT WorkEntryID
         FROM WorkEntry
@@ -367,7 +364,7 @@ class AsyncDBInterface:
 
     async def _read_comment_id(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT CommentID
         FROM PayPeriodComment
@@ -377,7 +374,7 @@ class AsyncDBInterface:
 
     async def _read_pay_period_ids(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT PayPeriodID
         FROM PayPeriod
@@ -387,7 +384,7 @@ class AsyncDBInterface:
 
     async def _read_employee_ids(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT EmployeeID
         FROM PayPeriod
@@ -397,7 +394,7 @@ class AsyncDBInterface:
 
     async def _read_work_entries(
         self, args: tuple
-    ) -> Union[list[tuple], Result]:
+    ) -> Union[dict, Result]:
         sql = """
         SELECT WorkDate, Hours
         FROM WorkEntry
@@ -405,17 +402,38 @@ class AsyncDBInterface:
         """
         return await self.__run_sql_read(sql=sql, args=args)
 
-    async def _read_pay_period_dates(self) -> Union[list[tuple], Result]:
+    async def read_dates(self) -> Union[dict, Result]:
         sql = """
         SELECT DISTINCT StartDate
         FROM PayPeriod
         WHERE EXISTS (SELECT DISTINCT StartDate FROM PayPeriod);
         """
 
-        return await self.__run_sql_read(sql=sql, args=())
+        result = await self.__run_sql_read(sql=sql, args=())
 
-    async def _default_employee(self) -> Union[list[tuple], Result]:
+        return result
 
+    async def read_groups(self) -> Union[dict, Result]:
+        sql = """
+        SELECT DISTINCT EmployeeGroup
+        FROM Employee
+        WHERE EXISTS (SELECT DISTINCT EmployeeGroup FROM Employee);
+        """
+        result = await self.__run_sql_read(sql=sql, args=())
+
+        return result
+
+    async def read_names(self, args: tuple) -> Union[dict, Result]:
+        sql = """
+        SELECT DISTINCT FirstName, MiddleName, LastName
+        FROM Employee
+        WHERE EmployeeGroup=?
+        AND EXISTS (SELECT DISTINCT FirstName, MiddleName, LastName FROM Employee);
+        """
+
+        return await self.__run_sql_read(sql=sql, args=args)
+
+    async def _default_employee(self) -> Union[dict, Result]:
         sql = """
         SELECT FirstName, MiddleName, LastName
         FROM Employee ORDER BY ROWID ASC LIMIT 1;
@@ -423,16 +441,11 @@ class AsyncDBInterface:
 
         result = await self.__run_sql_read(sql=sql, args=())
 
-        log.info("HIIMBEINGCALLED: %s", ' '.join(result[0]))
-
         return result
 
-    async def _default_date(self) -> Union[list[tuple], Result]:
+    async def _default_date(self) -> Union[dict, Result]:
         sql = """
         SELECT DISTINCT StartDate
         FROM PayPeriod ORDER BY StartDate LIMIT 1;
         """
         return await self.__run_sql_read(sql=sql, args=())
-
-    async def test_method(self, args: str = "ANGEL A ALANIZ"):
-        return [i.lower() for i in args]

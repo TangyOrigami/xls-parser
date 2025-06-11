@@ -3,10 +3,9 @@ import asyncio
 from PyQt6.QtCore import QObject, pyqtSignal
 from datetime import datetime
 
-from typing import Union, Any
+from typing import Union
 from util.async_db import AsyncDBInterface
 from structs.result import Result
-from structs.db_result import DBResult
 from util.logger import CLogger
 from util.processor import Processor
 
@@ -21,15 +20,25 @@ class TaskManager(QObject):
     # Coroutine Starters
     started = pyqtSignal(str)
 
+    # TODO:
+    # Implement all signals
     # Coroutine Results
     db_result = pyqtSignal(object)
+    db_dates = pyqtSignal(object)
+    db_groups = pyqtSignal(object)
+    db_names = pyqtSignal(object)
+    db_work_entry = pyqtSignal(object)
+    db_comment = pyqtSignal(object)
     action_result = pyqtSignal(str)
+    init_summary = pyqtSignal()
+    init_result = pyqtSignal(object)
+    init_finished = pyqtSignal()
 
     # Coroutine Finished
     done = pyqtSignal(str)
 
     # Refresh
-    refresh = pyqtSignal()
+    refresh = pyqtSignal(str)
 
     # Error Handling
     error = pyqtSignal(str)
@@ -50,6 +59,7 @@ class TaskManager(QObject):
                     raise Exception(f"Error starting DB: {result}")
 
             self.done.emit(f"[{self.now()}] Successfully Started DB!")
+            self.init_finished.emit()
 
         except Exception as e:
             self.error.emit(f"[{self.now()}] {str(e)}")
@@ -63,7 +73,6 @@ class TaskManager(QObject):
             )
 
     async def close_db_gracefully(self):
-
         self.started.emit(f"[{self.now()}] Closing Application...")
 
         try:
@@ -76,6 +85,8 @@ class TaskManager(QObject):
                 result = await db.close()
                 if result == ERROR or None:
                     raise Exception("Error closing DB")
+
+            self.started.emit(f"[{self.now()}] Closed DB.")
 
         except Exception as e:
             self.error.emit(str(e))
@@ -98,7 +109,6 @@ class TaskManager(QObject):
                        method_name: str,
                        args: Union[tuple, str] = None
                        ):
-
         self.started.emit(f"[{self.now()}] Querying DB...")
 
         try:
@@ -124,6 +134,91 @@ class TaskManager(QObject):
             self.error.emit(str(e))
             log.error("Failed to process file: %s", str(e))
 
+    async def start_combo_box_query(self):
+        if self._task is None or self._task.done():
+
+            self._task = await asyncio.create_task(
+                self.combo_box_query_db()
+            )
+
+    async def combo_box_query_db(self):
+        try:
+            async with AsyncDBInterface() as db:
+                dates_result = await db.read_dates()
+
+                if dates_result == ERROR or dates_result is None:
+                    raise Exception("Dates not found.")
+                self.db_dates.emit(dates_result)
+
+                groups_result = await db.read_groups()
+
+                if groups_result == ERROR or groups_result is None:
+                    raise Exception("Groups not found.")
+                self.db_groups.emit(groups_result)
+
+        except Exception as e:
+            self.error.emit(str(e))
+            log.error("Failed to process file: %s", str(e))
+
+    async def start_employee_combo_box_query(self, args: str):
+        if self._task is None or self._task.done():
+
+            self._task = await asyncio.create_task(
+                self.employee_combo_box_query(args=args)
+            )
+
+    async def employee_combo_box_query(self, args: str):
+        try:
+            async with AsyncDBInterface() as db:
+                names = await db.read_names(args=(args, ))
+
+                if names == ERROR or names is None:
+                    raise Exception("Employee names not found.")
+                self.db_names.emit(names)
+
+        except Exception as e:
+            self.error.emit(str(e))
+            log.error("Failed to process file: %s", str(e))
+
+    async def start_work_entry_query(self, args: tuple, start_date: str):
+        if self._task is None or self._task.done():
+
+            self._task = await asyncio.create_task(
+                self.work_entry_query(name=args, start_date=start_date)
+            )
+
+    async def work_entry_query(self, name: tuple, start_date: str):
+        self.started.emit(
+            f"[{self.now()}] Querying for: {' '.join(' '.join(name).split())}")
+
+        try:
+            async with AsyncDBInterface() as db:
+                employee_id = await db._read_employee_id(args=name)
+
+                if employee_id == ERROR or employee_id is None:
+                    raise Exception("employee_id not found.")
+
+                pp_id = await db._read_pay_period_id(
+                    args=(employee_id[0][0], start_date)
+                )
+
+                if pp_id == ERROR or pp_id is None:
+                    raise Exception("pay_period_id not found.")
+
+                work_entries = await db._read_work_entries(args=(pp_id[0][0], ))
+
+                if work_entries == ERROR or work_entries is None:
+                    raise Exception("pay_period_id not found.")
+
+                self.db_work_entry.emit([work_entries, start_date])
+
+        except Exception as e:
+            self.error.emit(str(e))
+            log.error("Failed to process file: %s", str(e))
+
+    def start_init_summary(self):
+        self.init_summary.emit()
+
     async def start_processing(self, file_path: str = None):
         if self._task is None or self._task.done():
             self._task = await asyncio.create_task(
@@ -148,36 +243,8 @@ class TaskManager(QObject):
             self.error.emit(str(e))
             log.error("Failed to process file: %s", str(e))
 
-    async def start_signal(self, signal: str, data: list[tuple, ...]):
-        if self._task is None or self._task.done():
-
-            if data is None:
-                self._task = await asyncio.create_task(
-                    self.emit_signal(signal=signal)
-                )
-
-            else:
-                self._task = await asyncio.create_task(
-                    self.emit_signal(signal=signal, data=data)
-                )
-
-    async def emit_signal(self, signal: str, data: Any):
-        try:
-            if signal == "db_result":
-                log.info("signal: %s | data: %s", signal, data)
-                parsed = DBResult.parse(data)
-                log.info("parsed result: %s", parsed.result)
-                self.db_result.emit(parsed)
-
-            elif signal == "action_result":
-                self.action_result.emit(data)
-
-        except Exception as e:
-            self.error.emit(str(e))
-            log.error("Emit failure: %s", e, exc_info=True)
-
     def refresh_call(self):
-        self.refresh.emit()
+        self.refresh.emit(f"[{self.now()}] App Refreshed")
 
     def now(self) -> str:
-        return datetime.now().strftime("%I:%M:%S")
+        return datetime.now().strftime("%I:%M:%S %p")

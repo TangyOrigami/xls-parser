@@ -35,12 +35,17 @@ class MainComponent(QWidget):
         # Status of current operation
         self.bottom_component = BottomComponent(manager)
 
-        main_layout = QVBoxLayout(self)
-        main_layout.addWidget(self.top_component)
-        main_layout.addWidget(self.mid_component)
-        main_layout.addWidget(self.bottom_component)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.addWidget(self.top_component)
+        self.main_layout.addWidget(self.mid_component)
+        self.main_layout.addWidget(self.bottom_component)
 
-        self.setLayout(main_layout)
+        self.setLayout(self.main_layout)
+
+        self.manager.refresh.connect(self.refresh_app)
+
+    def refresh_app(self, s):
+        self.main_layout.update()
 
     @asyncSlot()
     async def export_button_action(self):
