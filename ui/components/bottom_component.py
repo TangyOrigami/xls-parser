@@ -28,13 +28,36 @@ class BottomComponent(QWidget):
 
         self.manager = manager
 
+        # Bi-Weekly Totals
+        self.bi_weekly_title = QLabel("Bi-Weekly", self)
+        self.bi_weekly_title.setAlignment(
+            Qt.AlignmentFlag.AlignCenter)
+        self.bi_weekly_title.setStyleSheet(
+            "font-size: 20px; padding: 10px;")
+
+        self.bi_total = QLabel("")
+        self.bi_total_container = QHBoxLayout()
+        self.bi_total_container.addWidget(QLabel("Sum of Hours:"))
+        self.bi_total_container.addWidget(self.bi_total)
+        self.bi_total_container.setAlignment(
+            Qt.AlignmentFlag.AlignCenter)
+
+        self.bi_ot = QLabel("")
+        self.bi_ot_container = QHBoxLayout()
+        self.bi_ot_container.addWidget(QLabel("Sum of OT:"))
+        self.bi_ot_container.addWidget(self.bi_ot)
+        self.bi_ot_container.setAlignment(
+            Qt.AlignmentFlag.AlignCenter)
+
+        self.bi_weekly_container = QVBoxLayout()
+        self.bi_weekly_container.addWidget(self.bi_weekly_title)
+        self.bi_weekly_container.addLayout(self.bi_total_container)
+        self.bi_weekly_container.addLayout(self.bi_ot_container)
+
+        # Week 1 Summaries
         self.week_1_title = QLabel("Week 1", self)
         self.week_1_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.week_1_title.setStyleSheet("font-size: 20px; padding: 10px;")
-
-        # TODO:
-        # 1. Make this it's own component
-        # 2. Change the use of tables and just use labels.
 
         self.value_1 = QLabel("")
         self.week_1_total = QHBoxLayout()
@@ -50,14 +73,13 @@ class BottomComponent(QWidget):
         self.week_1.addWidget(self.week_1_title)
         self.week_1.addLayout(self.week_1_total)
         self.week_1.addLayout(self.week_1_ot_total)
+        self.week_1.setAlignment(
+            Qt.AlignmentFlag.AlignCenter)
 
+        # Week 2 Summaries
         self.week_2_title = QLabel("Week 2", self)
         self.week_2_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.week_2_title.setStyleSheet("font-size: 20px; padding: 10px;")
-
-        # TODO:
-        # 1. Make this it's own component
-        # 2. Change the use of tables and just use labels.
 
         self.value_3 = QLabel("")
         self.week_2_total = QHBoxLayout()
@@ -73,10 +95,16 @@ class BottomComponent(QWidget):
         self.week_2.addWidget(self.week_2_title)
         self.week_2.addLayout(self.week_2_total)
         self.week_2.addLayout(self.week_2_ot_total)
+        self.week_2.setAlignment(
+            Qt.AlignmentFlag.AlignCenter)
 
-        self.summaries = QHBoxLayout()
-        self.summaries.addLayout(self.week_1)
-        self.summaries.addLayout(self.week_2)
+        self.week_break_downs = QHBoxLayout()
+        self.week_break_downs.addLayout(self.week_1)
+        self.week_break_downs.addLayout(self.week_2)
+
+        self.summaries = QVBoxLayout()
+        self.summaries.addLayout(self.bi_weekly_container)
+        self.summaries.addLayout(self.week_break_downs)
 
         self.entry_table = QTableWidget()
         self.entry_table.setColumnCount(3)
@@ -254,6 +282,8 @@ class BottomComponent(QWidget):
         self.value_2.setText(str(total_ot_1))
         self.value_3.setText(str(total_2))
         self.value_4.setText(str(total_ot_2))
+        self.bi_total.setText(str(total_1 + total_2))
+        self.bi_ot.setText(str(total_ot_1 + total_ot_2))
 
     def refresh_table(self):
         self.entry_table.update()

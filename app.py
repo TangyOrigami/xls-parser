@@ -1,21 +1,23 @@
-import os
-import asyncio
-import sys
-
-from datetime import datetime
-from pathlib import Path
-from dotenv import load_dotenv
-
-from qasync import QEventLoop, asyncSlot
-from PyQt6.QtCore import QCommandLineOption, QCommandLineParser, pyqtSignal, QTimer
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog
-
-from structs.result import Result
-from ui.table import TableWidget
-from ui.main_component import MainComponent
-from util.logger import CLogger
 from util.task_manager import TaskManager
+from util.logger import CLogger
+from ui.main_component import MainComponent
+from ui.table import TableWidget
+from structs.result import Result
+from PyQt6.QtWidgets import QApplication, QMainWindow, QFileDialog
+from PyQt6.QtGui import QAction
+from PyQt6.QtCore import (
+    QCommandLineOption, QCommandLineParser, pyqtSignal, QTimer
+)
+from qasync import QEventLoop, asyncSlot
+from dotenv import load_dotenv
+from pathlib import Path
+from datetime import datetime
+import sys
+import asyncio
+import os
+import pdb
+pdb.set_trace()
+
 
 load_dotenv()
 log = CLogger().get_logger()
@@ -86,9 +88,14 @@ class MainWindow(QMainWindow):
         export_button_connect = export_button.triggered.connect
         export_button_connect(self.main_component.export_button_action)
 
+        breakpoint()
+
         import_button = QAction("Import", self)
         import_button.setStatusTip(
-            "Import compressed dump file to use as database. Note: This will hotswap the current database, meaning that the current database will be overwritten.")
+            "Import compressed dump file to use as database.\
+            Note: This will hotswap the current database,\
+            meaning that the current database will be overwritten."
+        )
         import_button_connect = import_button.triggered.connect
         import_button_connect(self.main_component.import_button_action)
 
